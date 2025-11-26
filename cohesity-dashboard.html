@@ -1,0 +1,2050 @@
+<!DOCTYPE html>
+<!-- Version: 2025-11-25 v2 - Complete Redesign per Stephen Few Principles -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>Cohesity Infrastructure Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ============================================
+           DESIGN SYSTEM - Variables
+           ============================================ */
+        :root {
+            /* Status Colors - Semantic Only */
+            --status-healthy: #22c55e;
+            --status-warning: #f59e0b;
+            --status-critical: #ef4444;
+            --status-info: #3b82f6;
+
+            /* Background Colors */
+            --bg-page: #0a0c10;
+            --bg-card: #13161c;
+            --bg-card-hover: #1a1e26;
+            --bg-elevated: #1f242d;
+            --bg-input: #0d0f12;
+
+            /* Text Colors */
+            --text-primary: #f0f3f6;
+            --text-secondary: #8b949e;
+            --text-muted: #6b7280;
+
+            /* Border Colors */
+            --border-default: #2d333b;
+            --border-subtle: #21262d;
+
+            /* Spacing */
+            --space-1: 4px;
+            --space-2: 8px;
+            --space-3: 12px;
+            --space-4: 16px;
+            --space-5: 20px;
+            --space-6: 24px;
+            --space-8: 32px;
+
+            /* Typography */
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+        }
+
+        /* ============================================
+           BASE STYLES
+           ============================================ */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            font-size: 14px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background: var(--bg-page);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        /* ============================================
+           CUSTOM SCROLLBARS
+           ============================================ */
+        /* Webkit browsers (Chrome, Safari, Edge) */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-elevated);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-default);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* Firefox */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-default) var(--bg-elevated);
+        }
+
+        /* Table containers - slightly thinner scrollbars */
+        .table-container::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .table-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .table-container::-webkit-scrollbar-thumb {
+            background: var(--border-default);
+            border-radius: 3px;
+        }
+
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* ============================================
+           LAYOUT
+           ============================================ */
+        .dashboard {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: var(--space-5);
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-default);
+            border-radius: 8px;
+            padding: var(--space-5);
+            margin-bottom: var(--space-4);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-4);
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-4); }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4); }
+
+        @media (max-width: 1200px) {
+            .grid-3 { grid-template-columns: repeat(2, 1fr); }
+            .grid-4 { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+        }
+
+        /* ============================================
+           HEADER
+           ============================================ */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--space-4) 0;
+            margin-bottom: var(--space-4);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .header-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .header-meta {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+        }
+
+        .header-timestamp {
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-2) var(--space-4);
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-default);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        .btn:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .btn-primary {
+            background: var(--status-info);
+            border-color: var(--status-info);
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        /* ============================================
+           HERO - STATUS INDICATOR (Tier 1)
+           ============================================ */
+        .hero {
+            background: var(--bg-card);
+            border: 1px solid var(--border-default);
+            border-radius: 8px;
+            padding: var(--space-4) var(--space-5);
+            margin-bottom: var(--space-4);
+            text-align: center;
+        }
+
+        .hero-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-3);
+            margin-bottom: var(--space-3);
+        }
+
+        .status-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .status-icon.healthy {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--status-healthy);
+        }
+
+        .status-icon.warning {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--status-warning);
+        }
+
+        .status-icon.critical {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--status-critical);
+        }
+
+        .status-text {
+            font-size: 1.125rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .status-text.healthy { color: var(--status-healthy); }
+        .status-text.warning { color: var(--status-warning); }
+        .status-text.critical { color: var(--status-critical); }
+
+        .status-subtext {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Alert Badges */
+        .alert-badges {
+            display: flex;
+            justify-content: center;
+            gap: var(--space-3);
+            flex-wrap: wrap;
+        }
+
+        .alert-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-2) var(--space-3);
+            border-radius: 20px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+        }
+
+        .alert-badge.critical {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--status-critical);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .alert-badge.warning {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--status-warning);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .alert-badge.healthy {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--status-healthy);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .alert-badge .badge-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* ============================================
+           CLUSTER CARDS (Tier 2)
+           ============================================ */
+        .cluster-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--space-4);
+            margin-bottom: var(--space-4);
+        }
+
+        @media (max-width: 1200px) {
+            .cluster-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            .cluster-grid { grid-template-columns: 1fr; }
+        }
+
+        .cluster-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-default);
+            border-radius: 8px;
+            padding: var(--space-5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cluster-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+        }
+
+        .cluster-card.healthy::before { background: var(--status-healthy); }
+        .cluster-card.warning::before { background: var(--status-warning); }
+        .cluster-card.critical::before { background: var(--status-critical); }
+
+        .cluster-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: var(--space-4);
+        }
+
+        .cluster-name {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .cluster-status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .cluster-status-dot.healthy { background: var(--status-healthy); }
+        .cluster-status-dot.warning { background: var(--status-warning); }
+        .cluster-status-dot.critical { background: var(--status-critical); }
+
+        .cluster-metric {
+            margin-bottom: var(--space-3);
+        }
+
+        .cluster-metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: var(--space-1);
+        }
+
+        .cluster-utilization {
+            font-size: 2rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            line-height: 1;
+        }
+
+        .cluster-utilization.healthy { color: var(--status-healthy); }
+        .cluster-utilization.warning { color: var(--status-warning); }
+        .cluster-utilization.critical { color: var(--status-critical); }
+
+        .cluster-capacity {
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--bg-input);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-bar-fill.healthy { background: var(--status-healthy); }
+        .progress-bar-fill.warning { background: var(--status-warning); }
+        .progress-bar-fill.critical { background: var(--status-critical); }
+
+        /* 80% threshold marker */
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 80%;
+            width: 1px;
+            height: 100%;
+            background: var(--text-muted);
+            opacity: 0.5;
+        }
+
+        .cluster-forecast {
+            display: flex;
+            justify-content: space-between;
+            margin-top: var(--space-3);
+            padding-top: var(--space-3);
+            border-top: 1px solid var(--border-subtle);
+            font-size: 0.8125rem;
+        }
+
+        .cluster-forecast-label {
+            color: var(--text-muted);
+        }
+
+        .cluster-forecast-value {
+            font-weight: 600;
+            font-family: var(--font-mono);
+        }
+
+        .cluster-forecast-value.healthy { color: var(--status-healthy); }
+        .cluster-forecast-value.warning { color: var(--status-warning); }
+        .cluster-forecast-value.critical { color: var(--status-critical); }
+        .cluster-forecast-value.muted { color: var(--text-muted); }
+
+        /* ============================================
+           DATA TABLES (Tier 3)
+           ============================================ */
+        .table-container {
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8125rem;
+        }
+
+        /* Expandable rows */
+        .expandable-row {
+            cursor: pointer;
+        }
+
+        .expandable-row:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .expand-icon {
+            display: inline-block;
+            width: 16px;
+            color: var(--text-muted);
+            transition: transform 0.15s ease;
+            margin-right: var(--space-1);
+        }
+
+        .expandable-row.expanded .expand-icon {
+            transform: rotate(90deg);
+            color: var(--status-info);
+        }
+
+        .details-row {
+            background: var(--bg-page);
+        }
+
+        .details-row td {
+            padding: 0 !important;
+        }
+
+        .details-content {
+            padding: var(--space-3) var(--space-4);
+            margin-left: var(--space-6);
+            border-left: 2px solid var(--border-default);
+        }
+
+        .nested-table {
+            width: 100%;
+            font-size: 0.75rem;
+        }
+
+        .nested-table th {
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            font-size: 0.625rem;
+            padding: var(--space-2);
+            text-align: left;
+        }
+
+        .nested-table td {
+            padding: var(--space-2);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .nested-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* M365 Tenant Cards */
+        .m365-tenant-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: var(--space-4);
+        }
+
+        .m365-tenant-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-default);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .m365-tenant-header {
+            padding: var(--space-4);
+            border-bottom: 1px solid var(--border-subtle);
+            background: var(--bg-elevated);
+        }
+
+        .m365-tenant-name {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .m365-tenant-domain {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .m365-tenant-summary {
+            display: flex;
+            gap: var(--space-6);
+            padding: var(--space-3) var(--space-4);
+            background: var(--bg-page);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .m365-stat {
+            font-size: 0.875rem;
+        }
+
+        .m365-type-table {
+            margin: 0;
+            border-radius: 0;
+        }
+
+        .m365-type-table th {
+            background: var(--bg-card);
+        }
+
+        .data-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .data-table th {
+            background: var(--bg-elevated);
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            font-size: 0.6875rem;
+            padding: var(--space-3) var(--space-3);
+            text-align: left;
+            border-bottom: 1px solid var(--border-default);
+            white-space: nowrap;
+        }
+
+        .data-table th.text-right,
+        .data-table td.text-right {
+            text-align: right;
+        }
+
+        .data-table th.sortable {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .data-table th.sortable:hover {
+            color: var(--text-primary);
+        }
+
+        .data-table tbody tr {
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .data-table tbody tr:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .data-table td {
+            padding: var(--space-3);
+            color: var(--text-primary);
+            vertical-align: middle;
+        }
+
+        .data-table .text-muted {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        .data-table .text-healthy { color: var(--status-healthy); }
+        .data-table .text-warning { color: var(--status-warning); }
+        .data-table .text-critical { color: var(--status-critical); }
+        .data-table .text-info, .text-info { color: var(--status-info); }
+
+        .data-table .value-positive {
+            color: var(--status-critical);
+            font-weight: 600;
+            font-family: var(--font-mono);
+        }
+
+        .data-table .value-negative {
+            color: var(--status-healthy);
+            font-family: var(--font-mono);
+        }
+
+        .data-table .value-mono {
+            font-family: var(--font-mono);
+        }
+
+        /* Type badges */
+        .type-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.625rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .type-badge.vm, .type-badge.vmware { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+        .type-badge.sql, .type-badge.mssql { background: rgba(139, 92, 246, 0.15); color: #a78bfa; }
+        .type-badge.physical { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+        .type-badge.exchange { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+        .type-badge.view { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
+        .type-badge.oracle { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+        .type-badge.nas { background: rgba(14, 165, 233, 0.15); color: #38bdf8; }
+        .type-badge.genericnas { background: rgba(14, 165, 233, 0.15); color: #38bdf8; }
+        .type-badge.o365, .type-badge.m365 { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+        .type-badge.pure { background: rgba(249, 115, 22, 0.15); color: #fb923c; }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: var(--space-8);
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 2rem;
+            margin-bottom: var(--space-2);
+            opacity: 0.5;
+        }
+
+        /* ============================================
+           COLLAPSIBLE SECTIONS (Tier 4)
+           ============================================ */
+        .collapsible {
+            border: 1px solid var(--border-default);
+            border-radius: 8px;
+            margin-bottom: var(--space-3);
+            overflow: hidden;
+        }
+
+        .collapsible-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--space-4);
+            background: var(--bg-card);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .collapsible-header:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .collapsible-title {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .collapsible-chevron {
+            transition: transform 0.2s ease;
+            color: var(--text-muted);
+        }
+
+        .collapsible.open .collapsible-chevron {
+            transform: rotate(180deg);
+        }
+
+        .collapsible-content {
+            display: none;
+            padding: var(--space-4);
+            background: var(--bg-page);
+            border-top: 1px solid var(--border-default);
+        }
+
+        .collapsible.open .collapsible-content {
+            display: block;
+        }
+
+        .collapsible-badge {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .collapsible-badge.issues {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--status-critical);
+        }
+
+        .collapsible-badge.ok {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--status-healthy);
+        }
+
+        .collapsible-badge.critical {
+            background: rgba(239, 68, 68, 0.25);
+            color: #ff6b6b;
+            font-weight: 700;
+            animation: pulse-critical 2s infinite;
+        }
+
+        @keyframes pulse-critical {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Critical row highlighting for urgent items */
+        .critical-row {
+            background: rgba(239, 68, 68, 0.08) !important;
+            border-left: 3px solid var(--status-critical);
+        }
+
+        .critical-row:hover {
+            background: rgba(239, 68, 68, 0.12) !important;
+        }
+
+        /* ============================================
+           LOADING & ERROR STATES
+           ============================================ */
+        .skeleton {
+            background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-card-hover) 50%, var(--bg-elevated) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s infinite;
+            border-radius: 4px;
+        }
+
+        @keyframes skeleton-loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .error-banner {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            padding: var(--space-4);
+            margin-bottom: var(--space-4);
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            color: var(--status-critical);
+        }
+
+        .error-banner.hidden { display: none; }
+
+        /* ============================================
+           UTILITY CLASSES
+           ============================================ */
+        .hidden { display: none !important; }
+        .text-center { text-align: center; }
+        .font-mono { font-family: var(--font-mono); }
+        .font-semibold { font-weight: 600; }
+        .mt-4 { margin-top: var(--space-4); }
+        .mb-4 { margin-bottom: var(--space-4); }
+
+        /* Focus states for accessibility */
+        :focus-visible {
+            outline: 2px solid var(--status-info);
+            outline-offset: 2px;
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- ============================================
+             HEADER
+             ============================================ -->
+        <header class="header">
+            <h1 class="header-title">Cohesity Infrastructure Dashboard</h1>
+            <div class="header-meta">
+                <span class="header-timestamp">
+                    Updated: <span id="lastUpdate">Loading...</span>
+                </span>
+                <button class="btn" id="askAiBtn" onclick="askClaudeDesktop()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                    Ask AI
+                </button>
+                <button class="btn btn-primary" id="refreshBtn" onclick="refreshDashboard()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6"/>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                    Refresh
+                </button>
+            </div>
+        </header>
+
+        <!-- Error Banner (hidden by default) -->
+        <div class="error-banner hidden" id="errorBanner">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span id="errorMessage">Unable to connect to API</span>
+            <button class="btn" onclick="refreshDashboard()">Retry</button>
+        </div>
+
+        <!-- ============================================
+             TIER 1: HERO STATUS INDICATOR
+             ============================================ -->
+        <section class="hero" id="heroSection">
+            <div class="hero-status">
+                <div class="status-icon healthy" id="statusIcon">
+                    <span id="statusIconText">...</span>
+                </div>
+                <div>
+                    <div class="status-text healthy" id="statusText">LOADING</div>
+                    <div class="status-subtext" id="statusSubtext">Connecting to cluster data...</div>
+                </div>
+            </div>
+            <div class="alert-badges" id="alertBadges">
+                <!-- Populated by JS -->
+            </div>
+        </section>
+
+        <!-- ============================================
+             TIER 2: CLUSTER CAPACITY CARDS
+             ============================================ -->
+        <section class="cluster-grid" id="clusterGrid">
+            <!-- Skeleton loaders -->
+            <div class="cluster-card">
+                <div class="skeleton" style="height: 20px; width: 60%; margin-bottom: 16px;"></div>
+                <div class="skeleton" style="height: 48px; width: 40%; margin-bottom: 12px;"></div>
+                <div class="skeleton" style="height: 8px; width: 100%; margin-bottom: 16px;"></div>
+                <div class="skeleton" style="height: 16px; width: 80%;"></div>
+            </div>
+            <div class="cluster-card">
+                <div class="skeleton" style="height: 20px; width: 60%; margin-bottom: 16px;"></div>
+                <div class="skeleton" style="height: 48px; width: 40%; margin-bottom: 12px;"></div>
+                <div class="skeleton" style="height: 8px; width: 100%; margin-bottom: 16px;"></div>
+                <div class="skeleton" style="height: 16px; width: 80%;"></div>
+            </div>
+            <div class="cluster-card">
+                <div class="skeleton" style="height: 20px; width: 60%; margin-bottom: 16px;"></div>
+                <div class="skeleton" style="height: 48px; width: 40%; margin-bottom: 12px;"></div>
+                <div class="skeleton" style="height: 8px; width: 100%; margin-bottom: 16px;"></div>
+                <div class="skeleton" style="height: 16px; width: 80%;"></div>
+            </div>
+        </section>
+
+        <!-- ============================================
+             TIER 3: GROWTH ANALYSIS & CONSUMERS
+             ============================================ -->
+        <div class="grid-2">
+            <!-- Growth Analysis Table -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+                            <polyline points="16 7 22 7 22 13"/>
+                        </svg>
+                        Capacity Growth
+                    </h2>
+                    <span class="text-muted" id="growthSummary">Loading...</span>
+                </div>
+                <div class="table-container">
+                    <table class="data-table" id="growthTable">
+                        <thead>
+                            <tr>
+                                <th>Object</th>
+                                <th class="text-right">24hr</th>
+                                <th class="text-right">7-day</th>
+                                <th class="text-right">30-day</th>
+                                <th class="text-right">Logical Size</th>
+                            </tr>
+                        </thead>
+                        <tbody id="growthTableBody">
+                            <tr><td colspan="5" class="text-center text-muted">Loading growth data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Storage Consumers Table -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                        </svg>
+                        Top Storage Consumers
+                    </h2>
+                    <span class="text-muted" id="consumersSummary">Loading...</span>
+                </div>
+                <div class="table-container">
+                    <table class="data-table" id="consumersTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Job Name</th>
+                                <th>Cluster</th>
+                                <th class="text-right">Physical</th>
+                                <th class="text-right">Dedup</th>
+                            </tr>
+                        </thead>
+                        <tbody id="consumersTableBody">
+                            <tr><td colspan="5" class="text-center text-muted">Loading consumer data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================
+             TIER 4: COLLAPSIBLE DETAIL SECTIONS
+             ============================================ -->
+        <section class="mt-4">
+            <!-- Backup Failures (auto-expand if issues) -->
+            <div class="collapsible" id="failuresSection">
+                <div class="collapsible-header" onclick="toggleCollapsible('failuresSection')">
+                    <div class="collapsible-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="15" y1="9" x2="9" y2="15"/>
+                            <line x1="9" y1="9" x2="15" y2="15"/>
+                        </svg>
+                        Backup Failures (7 days)
+                        <span class="collapsible-badge ok" id="failuresBadge">0</span>
+                    </div>
+                    <svg class="collapsible-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <table class="data-table" id="failuresTable">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Job</th>
+                                <th>Object</th>
+                                <th>Cluster</th>
+                                <th>Error</th>
+                            </tr>
+                        </thead>
+                        <tbody id="failuresTableBody">
+                            <tr><td colspan="5" class="empty-state">No failures in the last 7 days</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SQL Database Analysis -->
+            <div class="collapsible" id="sqlSection">
+                <div class="collapsible-header" onclick="toggleCollapsible('sqlSection')">
+                    <div class="collapsible-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                        </svg>
+                        SQL Database Analysis
+                        <span class="collapsible-badge ok" id="sqlBadge">0 DBs</span>
+                    </div>
+                    <svg class="collapsible-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div id="sqlSummary" style="margin-bottom: 12px; padding: 12px; background: var(--bg-card); border-radius: 6px; display: flex; gap: 24px;">
+                        <div><span class="text-muted">Total Physical:</span> <span id="sqlTotalPhysical" class="font-semibold">-</span></div>
+                        <div><span class="text-muted">Databases:</span> <span id="sqlTotalDBs" class="font-semibold">-</span></div>
+                        <div><span class="text-muted">Avg Compression:</span> <span id="sqlAvgCompression" class="font-semibold text-healthy">-</span></div>
+                    </div>
+                    <table class="data-table" id="sqlTable">
+                        <thead>
+                            <tr>
+                                <th>Database</th>
+                                <th>Cluster</th>
+                                <th class="text-right">Logical Size</th>
+                                <th class="text-right">Physical (Cluster)</th>
+                                <th class="text-right">Compression</th>
+                                <th class="text-right">Daily Phys Δ</th>
+                                <th class="text-right">Weekly Phys Δ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sqlTableBody">
+                            <tr><td colspan="7" class="text-center text-muted">Loading SQL data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- M365 Backup Status -->
+            <div class="collapsible" id="m365Section">
+                <div class="collapsible-header" onclick="toggleCollapsible('m365Section')">
+                    <div class="collapsible-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 3h18v18H3z"/>
+                            <path d="M3 9h18"/>
+                            <path d="M9 21V9"/>
+                        </svg>
+                        Microsoft 365 Backups
+                        <span class="collapsible-badge ok" id="m365Badge">OK</span>
+                    </div>
+                    <svg class="collapsible-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content" id="m365Content">
+                    <!-- Summary Stats -->
+                    <div class="grid-4 mb-4">
+                        <div style="background: var(--bg-card); padding: var(--space-4); border-radius: 6px; text-align: center;">
+                            <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px;">Tenants</div>
+                            <div id="m365Tenants" style="font-size: 1.5rem; font-weight: 700; font-family: var(--font-mono);">-</div>
+                        </div>
+                        <div style="background: var(--bg-card); padding: var(--space-4); border-radius: 6px; text-align: center;">
+                            <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px;">Protected Users</div>
+                            <div id="m365Users" style="font-size: 1.5rem; font-weight: 700; font-family: var(--font-mono);">-</div>
+                        </div>
+                        <div style="background: var(--bg-card); padding: var(--space-4); border-radius: 6px; text-align: center;">
+                            <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px;">Total Capacity</div>
+                            <div id="m365Capacity" style="font-size: 1.5rem; font-weight: 700; font-family: var(--font-mono);">-</div>
+                        </div>
+                        <div style="background: var(--bg-card); padding: var(--space-4); border-radius: 6px; text-align: center;">
+                            <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px;">Recent Failures</div>
+                            <div id="m365Failures" style="font-size: 1.5rem; font-weight: 700; font-family: var(--font-mono);">-</div>
+                        </div>
+                    </div>
+
+                    <!-- Tenant Breakdown Cards -->
+                    <div id="m365BreakdownContainer" class="m365-tenant-grid">
+                        <div class="text-center text-muted" style="padding: 24px;">Loading M365 data...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Storage Health -->
+            <div class="collapsible" id="storageHealthSection">
+                <div class="collapsible-header" onclick="toggleCollapsible('storageHealthSection')">
+                    <div class="collapsible-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                        </svg>
+                        Storage Health
+                        <span class="collapsible-badge ok" id="storageHealthBadge">OK</span>
+                    </div>
+                    <svg class="collapsible-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <div class="grid-4 mb-4">
+                        <div style="background: var(--bg-card); padding: var(--space-4); border-radius: 6px; text-align: center;">
+                            <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px;">Deleted Jobs</div>
+                            <div id="shDeletedJobs" style="font-size: 1.5rem; font-weight: 700; font-family: var(--font-mono);">-</div>
+                        </div>
+                        <div style="background: var(--bg-card); padding: var(--space-4); border-radius: 6px; text-align: center;">
+                            <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px;">Orphaned Snaps</div>
+                            <div id="shOrphanedSnaps" style="font-size: 1.5rem; font-weight: 700; font-family: var(--font-mono);">-</div>
+                        </div>
+                        <div style="background: var(--bg-card); padding: var(--space-4); border-radius: 6px; text-align: center;">
+                            <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px;">Orphaned (Physical)</div>
+                            <div id="shOrphanedStorage" style="font-size: 1.5rem; font-weight: 700; font-family: var(--font-mono);">-</div>
+                        </div>
+                        <div style="background: var(--bg-card); padding: var(--space-4); border-radius: 6px; text-align: center;">
+                            <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px;">Avg Dedupe</div>
+                            <div id="shDedupeRatio" style="font-size: 1.5rem; font-weight: 700; font-family: var(--font-mono); color: var(--status-healthy);">-</div>
+                        </div>
+                    </div>
+                    <!-- Orphaned Data from Deleted Protection Groups -->
+                    <table class="data-table" id="orphanedSnapsTable">
+                        <thead>
+                            <tr>
+                                <th>Protection Group</th>
+                                <th>Cluster</th>
+                                <th>Type</th>
+                                <th class="text-right">Snapshots</th>
+                                <th class="text-right">Physical Storage</th>
+                                <th class="text-right">Age</th>
+                                <th class="text-right">Oldest</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orphanedSnapsTableBody">
+                            <tr><td colspan="7" class="text-center text-muted">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- ============================================
+         JAVASCRIPT
+         ============================================ -->
+    <script>
+        // Configuration
+        const API_ENDPOINT = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3100'
+            : `http://${window.location.hostname}:3100`;
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            // Try to load cached data first for instant display
+            const cached = loadFromCache();
+            if (cached) {
+                console.log('[DASHBOARD] Displaying cached data, refreshing in background...');
+                setTimeout(() => refreshDashboard(), 100);
+            } else {
+                refreshDashboard();
+            }
+
+            // Schedule auto-refresh at 2 AM
+            scheduleAutoRefresh();
+        });
+
+        // ============================================
+        // DATA FETCHING
+        // ============================================
+        async function refreshDashboard() {
+            const refreshBtn = document.getElementById('refreshBtn');
+            const lastUpdateElem = document.getElementById('lastUpdate');
+            const errorBanner = document.getElementById('errorBanner');
+
+            try {
+                // Show loading state
+                refreshBtn.disabled = true;
+                refreshBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Loading...`;
+                errorBanner.classList.add('hidden');
+
+                // Fetch all data in parallel
+                const [capacityData, failuresData, alertsData, topGrowingData, consumersData, sqlStorageData, m365Summary, storageHealthData] = await Promise.all([
+                    fetch(`${API_ENDPOINT}/api/capacity`).then(r => r.ok ? r.json() : Promise.reject('Capacity API failed')),
+                    fetch(`${API_ENDPOINT}/api/failures?days=7`).then(r => r.ok ? r.json() : { failures: [] }),
+                    fetch(`${API_ENDPOINT}/api/alerts?days=1`).then(r => r.ok ? r.json() : { alerts: [] }),
+                    fetch(`${API_ENDPOINT}/api/top-growing?days=7&limit=15`).then(r => r.ok ? r.json() : { topGrowing: [] }),
+                    fetch(`${API_ENDPOINT}/api/consumers?limit=10`).then(r => r.ok ? r.json() : { topConsumers: [] }),
+                    fetch(`${API_ENDPOINT}/api/sql-storage-analysis`).then(r => r.ok ? r.json() : { top10Physical: [] }).catch(() => ({ top10Physical: [] })),
+                    fetch(`${API_ENDPOINT}/api/m365-summary`).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+                    fetch(`${API_ENDPOINT}/api/dashboard/storage-health`).then(r => r.ok ? r.json() : {}).catch(() => ({}))
+                ]);
+
+                // Also fetch 1-day and 30-day growth for the combined table
+                const [growth1day, growth30day] = await Promise.all([
+                    fetch(`${API_ENDPOINT}/api/top-growing?days=1&limit=15`).then(r => r.ok ? r.json() : { topGrowing: [] }).catch(() => ({ topGrowing: [] })),
+                    fetch(`${API_ENDPOINT}/api/top-growing?days=30&limit=15`).then(r => r.ok ? r.json() : { topGrowing: [] }).catch(() => ({ topGrowing: [] }))
+                ]);
+
+                // Update all UI sections
+                updateHeroStatus(capacityData, alertsData, failuresData);
+                updateClusterCards(capacityData);
+                updateGrowthTable(growth1day, topGrowingData, growth30day);
+                updateConsumersTable(consumersData);
+                updateFailuresSection(failuresData);
+                updateSQLSection(sqlStorageData);
+                updateM365Section(m365Summary);
+                updateStorageHealthSection(storageHealthData);
+
+                // Update timestamp
+                const now = new Date();
+                lastUpdateElem.textContent = now.toLocaleString();
+
+                // Cache data
+                try {
+                    localStorage.setItem('dashboardData', JSON.stringify({
+                        timestamp: now.toISOString(),
+                        capacity: capacityData,
+                        failures: failuresData,
+                        alerts: alertsData,
+                        growth1day, growth7day: topGrowingData, growth30day,
+                        consumers: consumersData,
+                        sqlStorage: sqlStorageData,
+                        m365: m365Summary,
+                        storageHealth: storageHealthData
+                    }));
+                } catch (e) {
+                    console.warn('[CACHE] Failed to save:', e.message);
+                }
+
+            } catch (error) {
+                console.error('Dashboard refresh error:', error);
+                errorBanner.classList.remove('hidden');
+                document.getElementById('errorMessage').textContent = `Unable to connect: ${error}`;
+                loadFromCache();
+            } finally {
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Refresh`;
+            }
+        }
+
+        // ============================================
+        // UI UPDATE FUNCTIONS
+        // ============================================
+
+        function updateHeroStatus(capacityData, alertsData, failuresData) {
+            const statusIcon = document.getElementById('statusIcon');
+            const statusIconText = document.getElementById('statusIconText');
+            const statusText = document.getElementById('statusText');
+            const statusSubtext = document.getElementById('statusSubtext');
+            const alertBadges = document.getElementById('alertBadges');
+
+            // Calculate overall status
+            const criticalClusters = capacityData.summary?.criticalClusters || 0;
+            const criticalAlerts = (alertsData.alerts || []).filter(a => a.severity === 'kCritical').length;
+            const warningAlerts = (alertsData.alerts || []).filter(a => a.severity === 'kWarning').length;
+            const recentFailures = (failuresData.failures || []).filter(f => f.hoursAgo <= 24).length;
+
+            let status = 'healthy';
+            let icon = '✓';
+            let text = 'ALL SYSTEMS OPERATIONAL';
+            let subtext = `${capacityData.summary?.totalClusters || 0} clusters monitored`;
+
+            if (criticalClusters > 0 || criticalAlerts > 0) {
+                status = 'critical';
+                icon = '!';
+                text = 'CRITICAL ALERTS';
+                subtext = `${criticalClusters} cluster(s) need immediate attention`;
+            } else if (warningAlerts > 0 || recentFailures > 0) {
+                status = 'warning';
+                icon = '⚠';
+                text = 'ATTENTION NEEDED';
+                subtext = `${warningAlerts} warnings, ${recentFailures} recent failures`;
+            }
+
+            // Update hero
+            statusIcon.className = `status-icon ${status}`;
+            statusIconText.textContent = icon;
+            statusText.className = `status-text ${status}`;
+            statusText.textContent = text;
+            statusSubtext.textContent = subtext;
+
+            // Build alert badges
+            let badgesHTML = '';
+
+            if (criticalAlerts > 0) {
+                badgesHTML += `<span class="alert-badge critical"><span class="badge-dot"></span>${criticalAlerts} Critical</span>`;
+            }
+            if (warningAlerts > 0) {
+                badgesHTML += `<span class="alert-badge warning"><span class="badge-dot"></span>${warningAlerts} Warnings</span>`;
+            }
+            if (recentFailures > 0) {
+                badgesHTML += `<span class="alert-badge critical"><span class="badge-dot"></span>${recentFailures} Failed (24hr)</span>`;
+            }
+            if (criticalAlerts === 0 && warningAlerts === 0 && recentFailures === 0) {
+                badgesHTML = `<span class="alert-badge healthy"><span class="badge-dot"></span>No active alerts</span>`;
+            }
+
+            alertBadges.innerHTML = badgesHTML;
+        }
+
+        function updateClusterCards(capacityData) {
+            const grid = document.getElementById('clusterGrid');
+            const clusters = capacityData.clusters || [];
+
+            if (clusters.length === 0) {
+                grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div>No cluster data available</div>';
+                return;
+            }
+
+            grid.innerHTML = clusters.map(cluster => {
+                const utilization = cluster.utilization || 0;
+                const status = utilization > 80 ? 'critical' : utilization > 70 ? 'warning' : 'healthy';
+                const usedTB = cluster.usedTB?.toFixed(1) || '0';
+                const totalTB = cluster.usedTB && cluster.utilization ? (cluster.usedTB / (cluster.utilization / 100)).toFixed(0) : '0';
+
+                // Handle daysTo80 properly - explain WHY if not available
+                let daysTo80Display, forecastClass;
+                const daysTo80 = cluster.daysTo80;
+
+                if (utilization >= 80) {
+                    daysTo80Display = 'AT CAPACITY';
+                    forecastClass = 'critical';
+                } else if (typeof daysTo80 === 'number' && daysTo80 > 0) {
+                    if (daysTo80 > 365) {
+                        daysTo80Display = '> 1 year';
+                        forecastClass = 'healthy';
+                    } else {
+                        daysTo80Display = `${Math.round(daysTo80)} days`;
+                        forecastClass = daysTo80 < 30 ? 'critical' : daysTo80 < 90 ? 'warning' : 'healthy';
+                    }
+                } else if (cluster.growthRate <= 0 || cluster.dailyGrowthGB <= 0) {
+                    daysTo80Display = 'Stable/Shrinking';
+                    forecastClass = 'healthy';
+                } else {
+                    daysTo80Display = 'Calculating...';
+                    forecastClass = 'muted';
+                }
+
+                return `
+                    <div class="cluster-card ${status}">
+                        <div class="cluster-header">
+                            <span class="cluster-name">${cluster.name || 'Unknown'}</span>
+                            <span class="cluster-status-dot ${status}"></span>
+                        </div>
+                        <div class="cluster-metric">
+                            <div class="cluster-metric-row">
+                                <span class="cluster-utilization ${status}">${utilization.toFixed(1)}%</span>
+                                <span class="cluster-capacity">${usedTB} / ${totalTB} TB</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-bar-fill ${status}" style="width: ${Math.min(utilization, 100)}%"></div>
+                                <div class="progress-bar-threshold"></div>
+                            </div>
+                        </div>
+                        <div class="cluster-forecast">
+                            <span class="cluster-forecast-label">Days to 80%</span>
+                            <span class="cluster-forecast-value ${forecastClass}">${daysTo80Display}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateGrowthTable(data1day, data7day, data30day) {
+            const tbody = document.getElementById('growthTableBody');
+            const summary = document.getElementById('growthSummary');
+
+            // Merge and dedupe objects from all timeframes
+            const objectMap = new Map();
+
+            const processData = (data, timeframe) => {
+                (data.topGrowing || []).forEach(obj => {
+                    const key = `${obj.name}-${obj.cluster}`;
+                    if (!objectMap.has(key)) {
+                        objectMap.set(key, {
+                            name: obj.name,
+                            type: obj.type || 'Unknown',
+                            cluster: obj.cluster,
+                            size: parseFloat(obj.size) || 0,
+                            growth1day: 0,
+                            growth7day: 0,
+                            growth30day: 0
+                        });
+                    }
+                    const entry = objectMap.get(key);
+                    const dailyGrowth = parseFloat(obj.dailyGrowth) || 0;
+                    if (timeframe === '1day') entry.growth1day = dailyGrowth;
+                    else if (timeframe === '7day') entry.growth7day = dailyGrowth * 7;
+                    else if (timeframe === '30day') entry.growth30day = dailyGrowth * 30;
+                    entry.size = Math.max(entry.size, parseFloat(obj.size) || 0);
+                });
+            };
+
+            processData(data1day, '1day');
+            processData(data7day, '7day');
+            processData(data30day, '30day');
+
+            // Sort by 7-day growth and take top 15
+            const sorted = Array.from(objectMap.values())
+                .sort((a, b) => b.growth7day - a.growth7day)
+                .slice(0, 15);
+
+            summary.textContent = `${sorted.length} objects tracked`;
+
+            if (sorted.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><div class="empty-state-icon">📈</div>No significant growth detected</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = sorted.map(obj => {
+                const typeClass = obj.type.toLowerCase().includes('sql') ? 'sql' :
+                                  obj.type.toLowerCase().includes('vmware') ? 'vm' :
+                                  obj.type.toLowerCase().includes('physical') ? 'physical' : 'vm';
+                const displayName = stripDomainSuffix(obj.name);
+
+                return `
+                    <tr>
+                        <td>
+                            <div style="font-weight: 500;">${displayName}</div>
+                            <div class="text-muted">
+                                <span class="type-badge ${typeClass}">${obj.type.replace('k', '')}</span>
+                                ${obj.cluster}
+                            </div>
+                        </td>
+                        <td class="text-right ${obj.growth1day > 0 ? 'value-positive' : 'text-muted'}">${formatGrowth(obj.growth1day)}</td>
+                        <td class="text-right ${obj.growth7day > 0 ? 'value-positive' : 'text-muted'}">${formatGrowth(obj.growth7day)}</td>
+                        <td class="text-right ${obj.growth30day > 0 ? 'value-positive' : 'text-muted'}">${formatGrowth(obj.growth30day)}</td>
+                        <td class="text-right value-mono">${formatSize(obj.size)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function updateConsumersTable(data) {
+            const tbody = document.getElementById('consumersTableBody');
+            const summary = document.getElementById('consumersSummary');
+            // Filter out DELETED jobs - they belong in Storage Health, not here
+            const consumers = (data.topConsumers || []).filter(c =>
+                !c.name?.startsWith('_DELETED_') && !c.name?.startsWith('DELETED')
+            );
+
+            summary.textContent = data.summary ? `${data.summary.totalStorageConsumedTB || 0} TB total` : '';
+
+            if (consumers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No consumer data available</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = consumers.map((c, i) => {
+                // Dedup colors: Green >15x (excellent), Amber 5-15x (normal), Red <5x (poor)
+                const dedupClass = c.dedupRatio >= 15 ? 'text-healthy' : c.dedupRatio >= 5 ? 'text-warning' : 'text-critical';
+                const jobId = c.jobId || c.id || i;
+                const cluster = c.clusterName || c.cluster || 'unknown';
+                return `
+                    <tr class="expandable-row" data-job-id="${jobId}" data-cluster="${cluster}" onclick="toggleJobObjects(${jobId}, '${cluster}', this)">
+                        <td class="text-muted">
+                            <span class="expand-icon">▶</span>
+                            #${i + 1}
+                        </td>
+                        <td style="font-weight: 500;">${c.name}</td>
+                        <td class="text-muted">${cluster}</td>
+                        <td class="text-right value-mono">${c.storageConsumedTB} TB</td>
+                        <td class="text-right ${dedupClass} font-semibold">${c.dedupRatio}x</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Toggle job objects expansion
+        async function toggleJobObjects(jobId, clusterName, rowElement) {
+            const detailsRowId = `details-${clusterName}-${jobId}`;
+            const existingDetailsRow = document.getElementById(detailsRowId);
+
+            // If details are already shown, hide them
+            if (existingDetailsRow) {
+                existingDetailsRow.remove();
+                rowElement.classList.remove('expanded');
+                return;
+            }
+
+            // Show loading state
+            rowElement.classList.add('expanded');
+            const loadingRow = document.createElement('tr');
+            loadingRow.id = detailsRowId;
+            loadingRow.className = 'details-row';
+            loadingRow.innerHTML = `
+                <td colspan="5">
+                    <div class="details-content">
+                        <span class="text-muted">Loading objects...</span>
+                    </div>
+                </td>
+            `;
+            rowElement.after(loadingRow);
+
+            try {
+                // Fetch job objects from API
+                const response = await fetch(`${API_ENDPOINT}/api/job-objects/${clusterName}/${jobId}?topN=10`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const data = await response.json();
+                const objects = data.objects || [];
+
+                let detailsHTML = '<div class="details-content">';
+
+                if (objects.length === 0) {
+                    detailsHTML += '<span class="text-muted">No objects found or unable to retrieve details.</span>';
+                } else {
+                    detailsHTML += `<div class="text-muted" style="margin-bottom: 8px; font-size: 0.75rem;">Top ${objects.length} of ${data.totalObjects || objects.length} objects</div>`;
+                    detailsHTML += '<table class="nested-table">';
+                    detailsHTML += `
+                        <thead>
+                            <tr>
+                                <th>Object Name</th>
+                                <th>Type</th>
+                                <th class="text-right">Logical</th>
+                                <th class="text-right">Physical</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                    `;
+
+                    objects.forEach(obj => {
+                        const statusClass = obj.status === 'kSuccess' ? 'text-healthy' :
+                                          obj.status === 'kWarning' ? 'text-warning' : 'text-critical';
+                        const statusText = (obj.status || 'Unknown').replace('k', '');
+                        const logicalGB = obj.logicalGB || obj.logical || '-';
+                        const physicalGB = obj.physicalGB || obj.physical || '-';
+                        const objType = (obj.type || 'Unknown').replace('k', '');
+
+                        detailsHTML += `
+                            <tr>
+                                <td style="font-weight: 500;">${obj.name}</td>
+                                <td class="text-muted">${objType}</td>
+                                <td class="text-right value-mono">${logicalGB} GB</td>
+                                <td class="text-right value-mono text-info">${physicalGB} GB</td>
+                                <td class="${statusClass}">${statusText}</td>
+                            </tr>
+                        `;
+                    });
+
+                    detailsHTML += '</tbody></table>';
+                }
+                detailsHTML += '</div>';
+
+                loadingRow.innerHTML = `<td colspan="5">${detailsHTML}</td>`;
+
+            } catch (error) {
+                console.error('Error fetching job objects:', error);
+                loadingRow.innerHTML = `
+                    <td colspan="5">
+                        <div class="details-content text-critical">
+                            Error loading objects: ${error.message}
+                        </div>
+                    </td>
+                `;
+            }
+        }
+
+        function updateFailuresSection(data) {
+            const badge = document.getElementById('failuresBadge');
+            const tbody = document.getElementById('failuresTableBody');
+            const section = document.getElementById('failuresSection');
+            const failures = data.failures || [];
+
+            const count = failures.length;
+            badge.textContent = count;
+            badge.className = `collapsible-badge ${count > 0 ? 'issues' : 'ok'}`;
+
+            // Auto-expand if there are failures
+            if (count > 0) {
+                section.classList.add('open');
+            }
+
+            if (count === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><div class="empty-state-icon">✓</div>No failures in the last 7 days</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = failures.map(f => {
+                const timeStr = f.hoursAgo < 1 ? `${Math.round(f.hoursAgo * 60)}m ago` :
+                               f.hoursAgo < 24 ? `${Math.round(f.hoursAgo)}h ago` :
+                               `${Math.round(f.hoursAgo / 24)}d ago`;
+                const timeClass = f.hoursAgo < 24 ? 'text-critical font-semibold' : '';
+                return `
+                    <tr>
+                        <td class="${timeClass}">${timeStr}</td>
+                        <td>${f.jobName}</td>
+                        <td class="text-muted">${f.objectName}</td>
+                        <td class="text-muted">${f.cluster}</td>
+                        <td class="text-critical" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${f.error}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function updateSQLSection(data) {
+            const badge = document.getElementById('sqlBadge');
+            const tbody = document.getElementById('sqlTableBody');
+            const databases = data.top10Physical || [];
+
+            badge.textContent = `${databases.length} DBs`;
+
+            if (databases.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No SQL database data available</td></tr>';
+                return;
+            }
+
+            // Calculate summary stats
+            const totalPhysicalTB = databases.reduce((sum, db) => sum + (db.physicalBackupTB || 0), 0);
+            const avgCompression = databases.length > 0
+                ? databases.reduce((sum, db) => sum + (db.compressionRatio || 0), 0) / databases.length
+                : 0;
+
+            // Update summary
+            document.getElementById('sqlTotalPhysical').textContent = `${totalPhysicalTB.toFixed(2)} TB`;
+            document.getElementById('sqlTotalDBs').textContent = databases.length;
+            document.getElementById('sqlAvgCompression').textContent = `${avgCompression.toFixed(1)}x`;
+
+            tbody.innerHTML = databases.map(db => {
+                const logicalGB = db.logicalGB || 0;
+                const physicalTB = db.physicalBackupTB || 0;
+                const physicalGB = physicalTB * 1024;
+                const compression = db.compressionRatio || 0;
+                const dailyDeltaTB = db.dailyPhysicalDeltaTB || 0;
+                const weeklyDeltaTB = db.weeklyPhysicalDeltaTB || 0;
+                const dailyDeltaGB = dailyDeltaTB * 1024;
+                const weeklyDeltaGB = weeklyDeltaTB * 1024;
+
+                // Color coding for physical storage impact
+                const physicalClass = physicalTB > 1 ? 'text-critical font-semibold' :
+                                     physicalTB > 0.5 ? 'text-warning font-semibold' : '';
+
+                // Color coding for growth
+                const dailyClass = dailyDeltaTB > 0 ? 'value-positive' : dailyDeltaTB < 0 ? 'text-healthy' : 'text-muted';
+                const weeklyClass = weeklyDeltaTB > 0 ? 'value-positive' : weeklyDeltaTB < 0 ? 'text-healthy' : 'text-muted';
+
+                return `
+                    <tr>
+                        <td style="font-weight: 500;">${db.database || 'Unknown'}</td>
+                        <td class="text-muted">${db.cluster}</td>
+                        <td class="text-right value-mono">${formatSize(logicalGB)}</td>
+                        <td class="text-right value-mono ${physicalClass}">${physicalTB >= 1 ? physicalTB.toFixed(2) + ' TB' : formatSize(physicalGB)}</td>
+                        <td class="text-right value-mono text-info">${compression.toFixed(1)}x</td>
+                        <td class="text-right value-mono ${dailyClass}">${formatGrowthTB(dailyDeltaTB)}</td>
+                        <td class="text-right value-mono ${weeklyClass}">${formatGrowthTB(weeklyDeltaTB)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function formatGrowthTB(deltaTB) {
+            if (!deltaTB || Math.abs(deltaTB) < 0.0001) return '-';
+            const deltaGB = deltaTB * 1024;
+            const prefix = deltaTB > 0 ? '+' : '';
+            if (Math.abs(deltaGB) >= 1024) return `${prefix}${deltaTB.toFixed(2)} TB`;
+            if (Math.abs(deltaGB) >= 1) return `${prefix}${deltaGB.toFixed(1)} GB`;
+            return `${prefix}${(deltaGB * 1024).toFixed(0)} MB`;
+        }
+
+        function updateM365Section(data) {
+            const badge = document.getElementById('m365Badge');
+            document.getElementById('m365Tenants').textContent = data.tenants || 0;
+            document.getElementById('m365Users').textContent = data.protectedObjects || 0;
+            document.getElementById('m365Capacity').textContent = `${data.totalCapacityGB || 0} GB`;
+            document.getElementById('m365Failures').textContent = data.failedRuns || 0;
+
+            badge.textContent = (data.failedRuns || 0) > 0 ? `${data.failedRuns} failures` : 'OK';
+            badge.className = `collapsible-badge ${(data.failedRuns || 0) > 0 ? 'issues' : 'ok'}`;
+
+            // Fetch and populate M365 breakdown table
+            fetchM365Breakdown();
+        }
+
+        async function fetchM365Breakdown() {
+            const container = document.getElementById('m365BreakdownContainer');
+            try {
+                const response = await fetch(`${API_ENDPOINT}/api/m365-top-users?topN=50`);
+                if (!response.ok) throw new Error('Failed to fetch M365 breakdown');
+                const data = await response.json();
+
+                const objects = data.topUsers || [];
+                if (objects.length === 0) {
+                    container.innerHTML = '<div class="empty-state" style="padding: 24px;"><div class="empty-state-icon">📧</div>No M365 backup data available</div>';
+                    return;
+                }
+
+                // Tenant display name mapping
+                const tenantDisplayNames = {
+                    'ceflp.com': 'Copperwood',
+                    'centcap.net': 'Centaurus'
+                };
+
+                // Group by tenant for visual hierarchy
+                const tenantGroups = {};
+                for (const obj of objects) {
+                    const tenant = obj.tenant || 'Unknown';
+                    if (!tenantGroups[tenant]) tenantGroups[tenant] = [];
+                    tenantGroups[tenant].push(obj);
+                }
+
+                let html = '';
+
+                for (const [tenantDomain, items] of Object.entries(tenantGroups)) {
+                    const displayName = tenantDisplayNames[tenantDomain] || tenantDomain;
+                    const typeItems = items.filter(i => i.type !== 'Total');
+                    const totalItem = items.find(i => i.type === 'Total');
+                    const totalSize = totalItem?.sizeGB && totalItem.sizeGB !== 'N/A' ? `${totalItem.sizeGB} GB` : '-';
+                    const totalCount = totalItem?.count || 0;
+
+                    html += `
+                        <div class="m365-tenant-card">
+                            <div class="m365-tenant-header">
+                                <div class="m365-tenant-name">${displayName}</div>
+                                <div class="m365-tenant-domain">${tenantDomain}</div>
+                            </div>
+                            <div class="m365-tenant-summary">
+                                <span class="m365-stat"><span class="text-muted">Users:</span> <strong>${totalCount.toLocaleString()}</strong></span>
+                                <span class="m365-stat"><span class="text-muted">Total Size:</span> <strong class="text-info">${totalSize}</strong></span>
+                            </div>
+                            <table class="data-table m365-type-table">
+                                <thead>
+                                    <tr>
+                                        <th>Type</th>
+                                        <th class="text-right">Objects</th>
+                                        <th class="text-right">Size (Logical)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+
+                    for (const item of typeItems) {
+                        const typeIcon = getM365TypeIcon(item.type);
+                        const sizeDisplay = item.sizeGB && item.sizeGB !== 'N/A' ? `${item.sizeGB} GB` : '-';
+                        html += `
+                            <tr>
+                                <td>${typeIcon} ${item.type}</td>
+                                <td class="text-right value-mono">${(item.count || 0).toLocaleString()}</td>
+                                <td class="text-right value-mono">${sizeDisplay}</td>
+                            </tr>
+                        `;
+                    }
+
+                    html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+
+                container.innerHTML = html;
+            } catch (error) {
+                console.error('Error fetching M365 breakdown:', error);
+                container.innerHTML = `<div class="text-center text-warning" style="padding: 24px;">Failed to load M365 breakdown: ${error.message}</div>`;
+            }
+        }
+
+        function getM365TypeIcon(type) {
+            const icons = {
+                'Mailbox': '📧',
+                'OneDrive': '☁️',
+                'SharePoint': '📁',
+                'Teams': '👥',
+                'PublicFolders': '📂'
+            };
+            return icons[type] || '📦';
+        }
+
+        function updateStorageHealthSection(data) {
+            const badge = document.getElementById('storageHealthBadge');
+            const orphanedSnapsTbody = document.getElementById('orphanedSnapsTableBody');
+            const summary = data.summary || {};
+
+            const deletedJobsEl = document.getElementById('shDeletedJobs');
+            const orphanedSnapsEl = document.getElementById('shOrphanedSnaps');
+            const orphanedStorageEl = document.getElementById('shOrphanedStorage');
+
+            const totalDeletedJobs = summary.totalDeletedJobs || 0;
+            const totalOrphanedSnaps = summary.totalOrphanedSnapshots || 0;
+            const totalOrphanedTB = summary.totalOrphanedStorageTB || 0;
+
+            deletedJobsEl.textContent = totalDeletedJobs;
+            orphanedSnapsEl.textContent = totalOrphanedSnaps.toLocaleString();
+            orphanedStorageEl.textContent = `${totalOrphanedTB.toFixed(1)} TB`;
+
+            // Visual urgency for high orphan counts
+            if (totalOrphanedSnaps > 5000) {
+                orphanedSnapsEl.style.color = 'var(--status-critical)';
+                orphanedSnapsEl.style.fontSize = '2rem';
+                orphanedSnapsEl.parentElement.style.background = 'rgba(239, 68, 68, 0.15)';
+                orphanedSnapsEl.parentElement.style.border = '2px solid var(--status-critical)';
+            } else if (totalOrphanedSnaps > 1000) {
+                orphanedSnapsEl.style.color = 'var(--status-warning)';
+            }
+
+            // Visual urgency for high orphaned storage
+            if (totalOrphanedTB >= 5) {
+                orphanedStorageEl.style.color = 'var(--status-critical)';
+                orphanedStorageEl.style.fontSize = '2rem';
+                orphanedStorageEl.parentElement.style.background = 'rgba(239, 68, 68, 0.15)';
+                orphanedStorageEl.parentElement.style.border = '2px solid var(--status-critical)';
+            } else if (totalOrphanedTB >= 1) {
+                orphanedStorageEl.style.color = 'var(--status-warning)';
+            }
+
+            // Calculate average dedupe from gcHealth
+            const gcClusters = data.gcHealth || [];
+            const avgDedupe = gcClusters.length > 0
+                ? (gcClusters.reduce((sum, c) => sum + (c.dedupeRatio || 0), 0) / gcClusters.length).toFixed(1)
+                : '-';
+            document.getElementById('shDedupeRatio').textContent = `${avgDedupe}x`;
+
+            const deletedCount = summary.totalDeletedJobs || 0;
+            const orphanedSnapCount = summary.totalOrphanedSnapshots || 0;
+            const orphanedStorageTB = summary.totalOrphanedStorageTB || 0;
+
+            // Badge shows severity based on orphaned storage amount
+            let badgeText, badgeClass;
+            if (orphanedStorageTB >= 5) {
+                badgeText = `${orphanedStorageTB.toFixed(1)} TB orphaned`;
+                badgeClass = 'critical';
+            } else if (deletedCount > 0 || orphanedSnapCount > 1000) {
+                badgeText = `${deletedCount} jobs`;
+                badgeClass = 'issues';
+            } else {
+                badgeText = 'OK';
+                badgeClass = 'ok';
+            }
+            badge.textContent = badgeText;
+            badge.className = `collapsible-badge ${badgeClass}`;
+
+            // Auto-expand if significant issues
+            if (orphanedStorageTB >= 1 || orphanedSnapCount > 1000) {
+                document.getElementById('storageHealthSection').classList.add('open');
+            }
+
+            const deletedJobs = data.deletedJobs || [];
+
+            // Single consolidated table - sort by storage consumed (biggest problems first)
+            const jobsWithData = deletedJobs.filter(j => (j.snapshotCount || 0) > 0 || (j.physicalGB || 0) > 0);
+            jobsWithData.sort((a, b) => (b.physicalGB || 0) - (a.physicalGB || 0));
+
+            if (jobsWithData.length === 0) {
+                orphanedSnapsTbody.innerHTML = '<tr><td colspan="7" class="empty-state"><div class="empty-state-icon">✓</div>No orphaned data detected</td></tr>';
+                return;
+            }
+
+            orphanedSnapsTbody.innerHTML = jobsWithData.map(job => {
+                const name = (job.jobName || job.name || 'Unknown').replace('_DELETED_', '');
+                const type = (job.environment || job.type || 'Unknown').replace('k', '');
+                const snapshots = job.snapshotCount || 0;
+                const storageGB = job.physicalGB || 0;
+                const ageYears = job.ageYears || 0;
+                const ageStr = ageYears >= 1 ? `${ageYears.toFixed(1)}y` : `${Math.round(ageYears * 12)}mo`;
+                const oldestSnap = job.oldestSnapshot ? formatDateShort(job.oldestSnapshot) : '-';
+
+                // Highlight critical rows (>1TB or >1000 snaps)
+                const rowClass = storageGB > 1024 || snapshots > 1000 ? 'critical-row' : '';
+
+                return `
+                    <tr class="${rowClass}">
+                        <td style="font-weight: 500;">${name}</td>
+                        <td class="text-muted">${job.cluster || '-'}</td>
+                        <td class="text-muted">${type}</td>
+                        <td class="text-right value-mono ${snapshots > 1000 ? 'text-critical font-semibold' : ''}">${snapshots.toLocaleString()}</td>
+                        <td class="text-right value-mono ${storageGB > 1024 ? 'text-critical font-semibold' : 'text-warning'}">${formatSize(storageGB)}</td>
+                        <td class="text-right text-muted">${ageStr}</td>
+                        <td class="text-right text-muted">${oldestSnap}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Standardized date format: DD MMM YY (e.g., "25 Nov 24")
+        function formatDateShort(isoString) {
+            if (!isoString) return '-';
+            const date = new Date(isoString);
+            return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+        }
+
+        // Standardized date format: DD MMM YYYY (e.g., "25 Nov 2024")
+        function formatDate(isoString) {
+            if (!isoString) return '-';
+            const date = new Date(isoString);
+            return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        // Standardized timestamp format: DD MMM HH:MM (e.g., "25 Nov 14:30")
+        function formatTimestamp(isoString) {
+            if (!isoString) return '-';
+            const date = new Date(isoString);
+            const day = date.getDate();
+            const month = date.toLocaleDateString('en-GB', { month: 'short' });
+            const time = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+            return `${day} ${month} ${time}`;
+        }
+
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+
+        function stripDomainSuffix(name) {
+            if (!name) return name;
+            // Strip common domain suffixes that add no value
+            return name
+                .replace(/\.ceinternal\.com$/i, '')
+                .replace(/\.internal\.local$/i, '')
+                .replace(/\.local$/i, '')
+                .replace(/\.corp$/i, '');
+        }
+
+        function formatSize(sizeGB) {
+            if (!sizeGB || sizeGB === 0) return '-';
+            if (sizeGB >= 1024) return `${(sizeGB / 1024).toFixed(1)} TB`;
+            if (sizeGB >= 1) return `${sizeGB.toFixed(1)} GB`;
+            return `${(sizeGB * 1024).toFixed(0)} MB`;
+        }
+
+        function formatGrowth(growthGB) {
+            if (!growthGB || growthGB === 0) return '-';
+            const prefix = growthGB > 0 ? '+' : '';
+            if (Math.abs(growthGB) >= 1024) return `${prefix}${(growthGB / 1024).toFixed(1)} TB`;
+            if (Math.abs(growthGB) >= 1) return `${prefix}${growthGB.toFixed(1)} GB`;
+            return `${prefix}${(growthGB * 1024).toFixed(0)} MB`;
+        }
+
+        function toggleCollapsible(id) {
+            const section = document.getElementById(id);
+            section.classList.toggle('open');
+        }
+
+        function loadFromCache() {
+            try {
+                const cached = localStorage.getItem('dashboardData');
+                if (!cached) return false;
+
+                const data = JSON.parse(cached);
+                const cacheAge = (Date.now() - new Date(data.timestamp).getTime()) / 1000 / 60; // minutes
+
+                if (cacheAge > 60) {
+                    console.log('[CACHE] Data too old, skipping');
+                    return false;
+                }
+
+                document.getElementById('lastUpdate').textContent = `${new Date(data.timestamp).toLocaleString()} (cached)`;
+
+                if (data.capacity) {
+                    updateHeroStatus(data.capacity, data.alerts || { alerts: [] }, data.failures || { failures: [] });
+                    updateClusterCards(data.capacity);
+                }
+                if (data.growth1day && data.growth7day && data.growth30day) {
+                    updateGrowthTable(data.growth1day, data.growth7day, data.growth30day);
+                }
+                if (data.consumers) updateConsumersTable(data.consumers);
+                if (data.failures) updateFailuresSection(data.failures);
+                if (data.sqlStorage) updateSQLSection(data.sqlStorage);
+                if (data.m365) updateM365Section(data.m365);
+                if (data.storageHealth) updateStorageHealthSection(data.storageHealth);
+
+                return true;
+            } catch (e) {
+                console.warn('[CACHE] Failed to load:', e.message);
+                return false;
+            }
+        }
+
+        function scheduleAutoRefresh() {
+            const now = new Date();
+            const next2AM = new Date();
+            next2AM.setHours(2, 0, 0, 0);
+            if (now > next2AM) next2AM.setDate(next2AM.getDate() + 1);
+
+            const timeUntil = next2AM - now;
+            console.log(`[SCHEDULER] Next refresh at ${next2AM.toLocaleString()}`);
+
+            setTimeout(() => {
+                refreshDashboard();
+                setInterval(refreshDashboard, 24 * 60 * 60 * 1000);
+            }, timeUntil);
+        }
+
+        async function askClaudeDesktop() {
+            try {
+                const context = `=== COHESITY DASHBOARD CONTEXT ===
+Last Updated: ${document.getElementById('lastUpdate').textContent}
+
+You can ask questions about this backup infrastructure data.
+
+Context has been copied to clipboard.`;
+
+                await navigator.clipboard.writeText(context);
+
+                // Try to open Claude
+                window.open('https://claude.ai/new', '_blank');
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Context copied to clipboard. Open Claude Desktop and paste.');
+            }
+        }
+
+        // Add CSS for spinning animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+            .spin { animation: spin 1s linear infinite; }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
