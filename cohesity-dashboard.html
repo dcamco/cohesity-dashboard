@@ -1178,9 +1178,7 @@
          ============================================ -->
     <script>
         // Configuration
-        const API_ENDPOINT = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-            ? 'http://localhost:3100'
-            : `http://${window.location.hostname}:3100`;
+        const API_ENDPOINT = window.location.origin;
 
         // ============================================
         // INITIALIZATION
