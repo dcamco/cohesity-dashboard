@@ -226,53 +226,114 @@
 
         /* ============================================
            HERO - STATUS INDICATOR (Tier 1)
+           Premium full-width status banner
            ============================================ */
         .hero {
-            background: var(--bg-card);
+            background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-elevated) 100%);
             border: 1px solid var(--border-default);
-            border-radius: 8px;
-            padding: var(--space-4) var(--space-5);
-            margin-bottom: var(--space-4);
-            text-align: center;
+            border-radius: 12px;
+            padding: var(--space-8) var(--space-6);
+            margin-bottom: var(--space-5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Subtle animated gradient overlay for premium feel */
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.03;
+            background: radial-gradient(ellipse at 30% 0%, currentColor 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .hero.healthy { color: var(--status-healthy); }
+        .hero.warning { color: var(--status-warning); }
+        .hero.critical { color: var(--status-critical); }
+
+        /* Accent line at top */
+        .hero::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: currentColor;
+        }
+
+        .hero-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-main {
+            display: flex;
+            align-items: center;
+            gap: var(--space-6);
         }
 
         .hero-status {
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: var(--space-3);
-            margin-bottom: var(--space-3);
+            gap: var(--space-5);
         }
 
         .status-icon {
-            width: 40px;
-            height: 40px;
+            width: 72px;
+            height: 72px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.25rem;
+            font-size: 2rem;
+            font-weight: 700;
+            position: relative;
         }
 
         .status-icon.healthy {
-            background: rgba(34, 197, 94, 0.15);
+            background: rgba(34, 197, 94, 0.12);
             color: var(--status-healthy);
+            box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.2), 0 0 30px rgba(34, 197, 94, 0.15);
         }
 
         .status-icon.warning {
-            background: rgba(245, 158, 11, 0.15);
+            background: rgba(245, 158, 11, 0.12);
             color: var(--status-warning);
+            box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.2), 0 0 30px rgba(245, 158, 11, 0.15);
         }
 
         .status-icon.critical {
-            background: rgba(239, 68, 68, 0.15);
+            background: rgba(239, 68, 68, 0.12);
             color: var(--status-critical);
+            box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.2), 0 0 30px rgba(239, 68, 68, 0.15);
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.2), 0 0 30px rgba(239, 68, 68, 0.15); }
+            50% { box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.4), 0 0 50px rgba(239, 68, 68, 0.3); }
+        }
+
+        .status-text-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-1);
         }
 
         .status-text {
-            font-size: 1.125rem;
+            font-size: 1.75rem;
             font-weight: 700;
-            letter-spacing: -0.02em;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            line-height: 1.1;
         }
 
         .status-text.healthy { color: var(--status-healthy); }
@@ -280,26 +341,28 @@
         .status-text.critical { color: var(--status-critical); }
 
         .status-subtext {
-            font-size: 0.875rem;
+            font-size: 0.9375rem;
             color: var(--text-secondary);
+            font-weight: 400;
         }
 
-        /* Alert Badges */
+        /* Alert Badges - right aligned */
         .alert-badges {
             display: flex;
-            justify-content: center;
             gap: var(--space-3);
             flex-wrap: wrap;
+            justify-content: flex-end;
         }
 
         .alert-badge {
             display: inline-flex;
             align-items: center;
             gap: var(--space-2);
-            padding: var(--space-2) var(--space-3);
-            border-radius: 20px;
-            font-size: 0.8125rem;
+            padding: var(--space-2) var(--space-4);
+            border-radius: 24px;
+            font-size: 0.875rem;
             font-weight: 600;
+            white-space: nowrap;
         }
 
         .alert-badge.critical {
@@ -315,16 +378,54 @@
         }
 
         .alert-badge.healthy {
-            background: rgba(34, 197, 94, 0.1);
+            background: rgba(34, 197, 94, 0.08);
             color: var(--status-healthy);
             border: 1px solid rgba(34, 197, 94, 0.2);
         }
 
         .alert-badge .badge-dot {
-            width: 6px;
-            height: 6px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
             background: currentColor;
+        }
+
+        .alert-badge.critical .badge-dot {
+            animation: badge-pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes badge-pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(0.85); }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 900px) {
+            .hero-content {
+                flex-direction: column;
+                gap: var(--space-4);
+                text-align: center;
+            }
+            .hero-main {
+                justify-content: center;
+            }
+            .alert-badges {
+                justify-content: center;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .hero {
+                padding: var(--space-5) var(--space-4);
+            }
+            .status-icon {
+                width: 56px;
+                height: 56px;
+                font-size: 1.5rem;
+            }
+            .status-text {
+                font-size: 1.25rem;
+            }
         }
 
         /* ============================================
@@ -890,19 +991,24 @@
 
         <!-- ============================================
              TIER 1: HERO STATUS INDICATOR
+             Premium full-width status banner
              ============================================ -->
-        <section class="hero" id="heroSection">
-            <div class="hero-status">
-                <div class="status-icon healthy" id="statusIcon">
-                    <span id="statusIconText">...</span>
+        <section class="hero healthy" id="heroSection">
+            <div class="hero-content">
+                <div class="hero-main">
+                    <div class="hero-status">
+                        <div class="status-icon healthy" id="statusIcon">
+                            <span id="statusIconText">...</span>
+                        </div>
+                        <div class="status-text-group">
+                            <div class="status-text healthy" id="statusText">LOADING</div>
+                            <div class="status-subtext" id="statusSubtext">Connecting to cluster data...</div>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <div class="status-text healthy" id="statusText">LOADING</div>
-                    <div class="status-subtext" id="statusSubtext">Connecting to cluster data...</div>
+                <div class="alert-badges" id="alertBadges">
+                    <!-- Populated by JS -->
                 </div>
-            </div>
-            <div class="alert-badges" id="alertBadges">
-                <!-- Populated by JS -->
             </div>
         </section>
 
@@ -1276,6 +1382,7 @@
         // ============================================
 
         function updateHeroStatus(capacityData, alertsData, failuresData) {
+            const heroSection = document.getElementById('heroSection');
             const statusIcon = document.getElementById('statusIcon');
             const statusIconText = document.getElementById('statusIconText');
             const statusText = document.getElementById('statusText');
@@ -1291,7 +1398,7 @@
             let status = 'healthy';
             let icon = '✓';
             let text = 'ALL SYSTEMS OPERATIONAL';
-            let subtext = `${capacityData.summary?.totalClusters || 0} clusters monitored`;
+            let subtext = `${capacityData.summary?.totalClusters || 0} clusters monitored • All backups running normally`;
 
             if (criticalClusters > 0 || criticalAlerts > 0) {
                 status = 'critical';
@@ -1305,7 +1412,8 @@
                 subtext = `${warningAlerts} warnings, ${recentFailures} recent failures`;
             }
 
-            // Update hero
+            // Update hero section and icon classes
+            heroSection.className = `hero ${status}`;
             statusIcon.className = `status-icon ${status}`;
             statusIconText.textContent = icon;
             statusText.className = `status-text ${status}`;
