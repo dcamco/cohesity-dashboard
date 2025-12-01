@@ -1,0 +1,2971 @@
+<!DOCTYPE html>
+<!-- Version: 2025-11-25 - Added STORAGE HEALTH section for orphaned data monitoring -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Cohesity Backup Dashboard</title>
+    <script>
+        // Clear localStorage cache to force fresh data load
+        if (localStorage.getItem('dashboardData')) {
+            console.log('Clearing cached dashboard data...');
+            localStorage.removeItem('dashboardData');
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* QUICK WIN: Consolidated to single font (Inter) */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* QUICK WIN: Removed racing stripe, gradient shift, and shine animations
+           Kept only functional animations (loading spinner) */
+
+        .racing-stripe {
+            display: none; /* DELETED: Racing stripe serves no data purpose */
+        }
+
+        /* DELETED: @keyframes raceStripe - decorative only */
+        /* DELETED: @keyframes gradientShift - title animation */
+        /* DELETED: @keyframes livePulse - decorative only */
+        /* DELETED: @keyframes criticalPulse - distracting */
+        /* DELETED: @keyframes shine - progress bar decoration */
+
+        body {
+            /* QUICK WIN: Removed grid pattern - clean solid background */
+            background: #0f1117;
+            min-height: 100vh;
+            /* QUICK WIN: Using Inter font */
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: #f0f3f6;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* DELETED: body::before radial gradients - decorative only */
+
+        .card {
+            /* QUICK WIN: Simplified card - solid background, subtle border */
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        /* DELETED: .card::before border pulse animation */
+        /* DELETED: .card::after skewed gradient overlay */
+
+        .card:hover {
+            /* QUICK WIN: Simple hover - just background change, no transform */
+            background: #1c2128;
+        }
+
+        .metric-card {
+        }
+
+        h1, h2, h3 {
+            /* QUICK WIN: Single font family */
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: #f0f3f6;
+            font-weight: 600;
+        }
+
+        h1 {
+            /* QUICK WIN: Removed gradient animation - clean static text */
+            font-size: 1.75rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+
+        h2 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #f0f3f6;
+            padding-left: 0;
+            position: relative;
+        }
+
+        /* DELETED: h2::before glowing accent bar */
+
+        .status-healthy {
+            /* QUICK WIN: Removed text-shadow glow - clean readable text */
+            color: #22c55e;
+            font-weight: 600;
+        }
+
+        .status-warning {
+            /* QUICK WIN: Removed text-shadow glow */
+            color: #f59e0b;
+            font-weight: 600;
+        }
+
+        .status-critical {
+            /* QUICK WIN: Removed text-shadow glow and pulse animation */
+            color: #ef4444;
+            font-weight: 600;
+        }
+
+        button {
+            /* QUICK WIN: Simplified button - solid colors, Inter font */
+            background: #3b82f6;
+            border: 1px solid #3b82f6;
+            border-radius: 6px;
+            color: #f0f3f6;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-weight: 500;
+            font-size: 0.875rem;
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        /* DELETED: button::before shine animation */
+
+        button:hover {
+            background: #2563eb;
+        }
+
+        button:active {
+            background: #1d4ed8;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        thead {
+            /* QUICK WIN: Simple solid background */
+            background: #1c2128;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        th {
+            /* QUICK WIN: Inter font, no text-shadow */
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 12px 16px;
+            border-bottom: 1px solid #30363d;
+            text-align: left;
+        }
+
+        tbody {
+            background: #161b22;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #21262d;
+        }
+
+        tbody tr:hover {
+            /* QUICK WIN: Simple hover, no box-shadow */
+            background: #21262d;
+        }
+
+        td {
+            color: #9ca3af;
+            font-size: 0.875rem;
+            padding: 12px 16px;
+            line-height: 1.5;
+        }
+
+        /* QUICK WIN: Clean status colors without text-shadows */
+        td .text-red-600 {
+            color: #ef4444;
+            font-weight: 600;
+        }
+
+        td .text-orange-700 {
+            color: #f59e0b;
+            font-weight: 600;
+        }
+
+        td .text-cyan-700 {
+            color: #3b82f6;
+            font-weight: 600;
+        }
+
+        td .text-green-600 {
+            color: #22c55e;
+            font-weight: 600;
+        }
+
+        .text-gray-600, .text-gray-700, .text-gray-800 {
+            color: #9ca3af;
+        }
+
+        .text-gray-500 {
+            color: #6b7280;
+        }
+
+        .text-blue-600 {
+            color: #3b82f6;
+            font-weight: 600;
+        }
+
+        .bg-gray-100 {
+            background: #1c2128;
+        }
+
+        .border-gray-200 {
+            border-color: #30363d;
+        }
+
+        /* QUICK WIN: Simplified progress bars - solid colors, no shine animation */
+        .bg-gray-200 {
+            background: #1c2128;
+            border-radius: 4px;
+        }
+
+        /* DELETED: ::after shine animation pseudo-elements */
+
+        .bg-cyan-500, .bg-cyan-600 {
+            background: #3b82f6;
+        }
+
+        .bg-green-500, .bg-green-600 {
+            background: #22c55e;
+        }
+
+        .bg-orange-500, .bg-orange-600 {
+            background: #f59e0b;
+        }
+
+        .bg-red-500, .bg-red-600 {
+            background: #ef4444;
+        }
+
+        .status-healthy, .status-warning, .status-critical {
+        }
+
+        /* Expandable row styling */
+        .cursor-pointer {
+            cursor: pointer;
+        }
+
+        .expand-icon {
+            display: inline-block;
+            transition: transform 0.2s;
+            margin-right: 4px;
+            color: #ef4444;
+        }
+
+        tr.expanded .expand-icon {
+            transform: rotate(90deg);
+        }
+
+        /* Nested table styling for objects */
+        #consumersTable table {
+            margin: 0.5rem 0;
+        }
+
+        #consumersTable table th {
+            font-size: 0.9rem !important;
+            font-weight: 600 !important;
+            padding: 0.5rem 0.75rem !important;
+            background: rgba(239, 68, 68, 0.1) !important;
+            border: 1px solid rgba(239, 68, 68, 0.2) !important;
+        }
+
+        #consumersTable table td {
+            font-size: 0.9rem !important;
+            padding: 0.5rem 0.75rem !important;
+            border: 1px solid rgba(0, 255, 255, 0.1) !important;
+        }
+
+        /* Live Status Indicator - simplified */
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #22c55e;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-weight: 600;
+        }
+
+        .live-indicator::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #22c55e;
+            border-radius: 50%;
+            /* DELETED: box-shadow glow and livePulse animation */
+        }
+
+        /* Metric Card - simplified */
+        .metric-card {
+            padding: 24px;
+        }
+
+        /* DELETED: .metric-card:hover transform and glow */
+
+        /* Metric values - Inter font, no text-shadow */
+        .metric-card .text-3xl,
+        .metric-card .text-4xl,
+        .metric-card .text-5xl {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-weight: 700;
+        }
+
+        /* ========== DENSITY OPTIMIZATIONS ========== */
+
+        /* 1. Reduce Card Padding and Margins */
+        .card {
+            padding: 14px !important;
+        }
+
+        .p-6 {
+            padding: 14px !important;
+        }
+
+        .p-4 {
+            padding: 12px !important;
+        }
+
+        .mb-6 {
+            margin-bottom: 12px !important;
+        }
+
+        .mb-4 {
+            margin-bottom: 10px !important;
+        }
+
+        .mt-2, .mt-4 {
+            margin-top: 8px !important;
+        }
+
+        /* 2. Reduce Header and Typography Sizes */
+        h1 {
+            font-size: 2rem !important;
+            margin-bottom: 8px !important;
+        }
+
+        h2 {
+            font-size: 1rem !important;
+            margin-bottom: 12px !important;
+        }
+
+        /* DELETED: h2::before styling - we removed the accent bar */
+
+        h3 {
+            font-size: 0.95rem !important;
+            margin-bottom: 10px !important;
+        }
+
+        .text-sm {
+            font-size: 0.9rem !important;
+        }
+
+        .text-xs {
+            font-size: 0.85rem !important;
+        }
+
+        /* 3. Compact Table Styling */
+        td {
+            padding: 6px 10px !important;
+            font-size: 0.9rem !important;
+            line-height: 1.3 !important;
+        }
+
+        th {
+            padding: 8px 10px !important;
+            font-size: 0.7rem !important;
+        }
+
+        tbody tr {
+            line-height: 1.3 !important;
+        }
+
+        #consumersTable table th {
+            font-size: 0.65rem !important;
+            padding: 6px 8px !important;
+        }
+
+        #consumersTable table td {
+            font-size: 0.65rem !important;
+            padding: 6px 8px !important;
+        }
+
+        /* 4. Optimize Cluster Grid Layout */
+        @media (min-width: 1280px) {
+            #clustersGrid {
+                gap: 12px !important;
+            }
+        }
+
+        .metric-card {
+            padding: 14px !important;
+        }
+
+        .metric-card .text-3xl,
+        .metric-card .text-4xl,
+        .metric-card .text-5xl {
+            font-size: 1.8rem !important;
+        }
+
+        .metric-card .space-y-2 > * + * {
+            margin-top: 6px !important;
+        }
+
+        /* 5. Reduce Grid Gaps Throughout */
+        .gap-4 {
+            gap: 10px !important;
+        }
+
+        .gap-6 {
+            gap: 12px !important;
+        }
+
+        .space-y-2 > * + * {
+            margin-top: 6px !important;
+        }
+
+        .space-y-6 > * + * {
+            margin-top: 12px !important;
+        }
+
+        /* 6. Compact M365 Section */
+        #m365Card .overflow-x-auto {
+            max-height: 200px !important;
+        }
+
+        #m365Card .border-2 {
+            padding: 12px !important;
+        }
+
+        #m365Tenants, #m365Users, #m365Capacity, #m365Failures,
+        #centaurusUsers, #centaurusCapacity, #centaurusProtected,
+        #copperwoodUsers, #copperwoodCapacity, #copperwoodProtected {
+            font-size: 1.6rem !important;
+            margin-top: 4px !important;
+        }
+
+        #m365Card .text-xl {
+            font-size: 1rem !important;
+        }
+
+        /* 7. Compact Growth Insights Tables */
+        #growth24hrTable, #growth7dayTable, #growth30dayTable,
+        #sql24hrTable, #sql7dayTable, #sql30dayTable {
+            max-height: 280px !important;
+        }
+
+        .text-lg {
+            font-size: 0.95rem !important;
+        }
+
+        .text-md {
+            font-size: 0.9rem !important;
+        }
+
+        /* 8. Compact System Analysis Section */
+        #systemAnalysisCard .overflow-x-auto {
+            max-height: 250px !important;
+        }
+
+        #systemAnalysisCard .border-2 {
+            padding: 12px !important;
+        }
+
+        /* 9. Optimize Storage Consumers Table */
+        #consumersTable {
+            font-size: 0.85rem !important;
+        }
+
+        #consumersTable .px-4 {
+            padding-left: 12px !important;
+            padding-right: 12px !important;
+        }
+
+        #consumersTable .py-3 {
+            padding-top: 8px !important;
+            padding-bottom: 8px !important;
+        }
+
+        /* 10. Compact Status Indicators */
+        .status-healthy, .status-warning, .status-critical {
+            font-size: 0.85rem !important;
+        }
+
+        /* 11. Reduce Button Sizes */
+        button {
+            padding: 10px 24px !important;
+            font-size: 0.85rem !important;
+        }
+
+        /* 12. Optimize for Wider Screens */
+        @media (min-width: 1920px) {
+            .max-w-7xl {
+                max-width: 1800px !important;
+            }
+
+            .grid-cols-1.md\\:grid-cols-4 {
+                grid-template-columns: repeat(4, 1fr) !important;
+            }
+        }
+
+        @media (min-width: 1440px) {
+            .max-w-7xl {
+                max-width: 1400px !important;
+            }
+        }
+
+        /* 13. Reduce Specific Section Padding */
+        .header {
+            padding: 20px 28px !important;
+        }
+
+        /* 14. Optimize Executive Summary and Recommendations */
+        #executiveSummary {
+            line-height: 1.5 !important;
+            font-size: 0.9rem !important;
+        }
+
+        #executiveSummary p {
+            margin-bottom: 10px !important;
+        }
+
+        #recommendationsList li {
+            padding: 6px !important;
+            margin-bottom: 6px !important;
+            font-size: 0.85rem !important;
+        }
+
+        /* 15. Reduce Vertical Rhythm */
+        .dashboard {
+            padding: 15px !important;
+        }
+
+        body.p-6 {
+            padding: 15px !important;
+        }
+
+        /* Additional compact spacing for cards */
+        .gap-3 {
+            gap: 8px !important;
+        }
+
+        /* Compact M365 tenant sections */
+        #m365Card .grid-cols-3 {
+            gap: 8px !important;
+        }
+
+        #m365Card .mb-6 {
+            margin-bottom: 10px !important;
+        }
+
+        #m365Card .mb-4 {
+            margin-bottom: 8px !important;
+        }
+
+        #m365Card .mb-3 {
+            margin-bottom: 8px !important;
+        }
+
+        /* Tighter paragraph spacing */
+        p {
+            line-height: 1.4 !important;
+        }
+
+        /* Compact list items */
+        ul, ol {
+            margin-bottom: 10px !important;
+        }
+
+        li {
+            line-height: 1.4 !important;
+        }
+
+        /* Database details table - larger font size for all levels */
+        .db-details-table,
+        .db-details-table th,
+        .db-details-table td,
+        .db-details-table span {
+            font-size: 14.4px !important;
+        }
+
+        /* Tooltip styles */
+        .tooltip-header {
+            position: relative;
+            cursor: help;
+        }
+
+        .tooltip-header::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(-8px);
+            background: rgba(0, 0, 0, 0.95);
+            color: #22c55e;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 400;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            z-index: 1000;
+            border: 1px solid #22c55e;
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+            font-family: 'Inter', sans-serif;
+            letter-spacing: 0.5px;
+        }
+
+        .tooltip-header:hover::after {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-12px);
+        }
+
+        /* SQL Database Tables - Responsive Column Widths */
+        #sqlTop10Table th:nth-child(1),
+        #sqlGrowersTable th:nth-child(1) {
+            width: 30%; /* DATABASE */
+        }
+
+        #sqlTop10Table th:nth-child(2),
+        #sqlGrowersTable th:nth-child(2) {
+            width: 10%; /* CLUSTER */
+        }
+
+        #sqlTop10Table th:nth-child(3),
+        #sqlTop10Table th:nth-child(4),
+        #sqlTop10Table th:nth-child(5),
+        #sqlTop10Table th:nth-child(6),
+        #sqlGrowersTable th:nth-child(3),
+        #sqlGrowersTable th:nth-child(4),
+        #sqlGrowersTable th:nth-child(5),
+        #sqlGrowersTable th:nth-child(6) {
+            width: 15%; /* Size columns */
+        }
+
+        /* Allow header text to wrap */
+        #sqlTop10Table th,
+        #sqlGrowersTable th {
+            white-space: normal;
+            word-wrap: break-word;
+        }
+
+        /* Database name column - allow wrapping if too long */
+        #sqlTop10Table td:nth-child(1),
+        #sqlGrowersTable td:nth-child(1) {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+    </style>
+</head>
+<body class="p-6">
+    <div class="racing-stripe"></div>
+    <div style="width: 100%;">
+        <!-- ========== HERO HEADER WITH PRIMARY METRIC ========== -->
+        <div class="card p-6 mb-6">
+            <!-- Top row: Title + Actions -->
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h1 style="font-size: 1.5rem; font-weight: 600; color: #f0f3f6; margin: 0;">Cohesity Backup Dashboard</h1>
+                    <p style="color: #6b7280; font-size: 0.875rem; margin-top: 4px;">
+                        Last updated: <span id="lastUpdate" style="color: #9ca3af;">Connecting...</span>
+                    </p>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button onclick="askClaudeDesktop()" class="px-3 py-2 rounded" style="background: #374151; border: 1px solid #4b5563; color: #9ca3af; font-size: 0.8rem;">
+                        Ask AI
+                    </button>
+                    <button id="refreshBtn" onclick="refreshDashboard()">
+                        Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- HERO METRIC: Overall cluster health - THE MOST IMPORTANT THING -->
+            <div id="heroMetric" style="text-align: center; padding: 32px 0;">
+                <div style="color: #6b7280; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">
+                    Cluster Health
+                </div>
+                <div id="heroStatus" style="font-size: 72px; font-weight: 700; line-height: 1; color: #6b7280;">
+                    —
+                </div>
+                <div id="heroSubtext" style="color: #6b7280; font-size: 1rem; margin-top: 12px;">
+                    Waiting for cluster data...
+                </div>
+            </div>
+
+            <!-- Cluster cards row -->
+            <div id="clustersGrid" class="grid grid-cols-1 lg:grid-cols-3 gap-4" style="margin-top: 24px;">
+                <!-- Cluster cards populated by JS - will show "No data" state if empty -->
+                <div class="text-center p-6" style="background: #1c2128; border-radius: 8px; border: 1px dashed #374151;">
+                    <div style="color: #6b7280; font-size: 0.875rem;">Loading cluster data...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== SECTION 2: CRITICAL ALERTS ========== -->
+        <!-- Recent Failures Alert -->
+        <div class="card p-6 mb-6" id="failuresCard" style="display: none; border-top: 3px solid #ef4444;">
+            <h2 class="text-2xl font-bold mb-4" style="color: #ef4444;">Backup Failures (Last 7 Days)</h2>
+            <div class="mb-4" style="color: #9ca3af; font-weight: 600;">
+                <span id="failuresStats">SCANNING FOR FAILURES...</span>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-red-100">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-sm font-semibold text-gray-700">Time</th>
+                            <th class="px-3 py-2 text-left text-sm font-semibold text-gray-700">Job Name</th>
+                            <th class="px-3 py-2 text-left text-sm font-semibold text-gray-700">Object</th>
+                            <th class="px-3 py-2 text-left text-sm font-semibold text-gray-700">Cluster</th>
+                            <th class="px-3 py-2 text-left text-sm font-semibold text-gray-700">Error</th>
+                        </tr>
+                    </thead>
+                    <tbody id="failuresTable">
+                        <!-- Rows will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ========== SECTION 4: GROWTH ANALYSIS (OPTIMIZED LAYOUT) ========== -->
+        <div class="card p-6 mb-6">
+            <h2 class="text-2xl font-bold mb-4" style="color: #f0f3f6;">Capacity Growth Analysis</h2>
+
+            <!-- Combined stats line -->
+            <div class="mb-4" style="color: #9ca3af;">
+                <span id="growthInsightsStats">Loading growth data...</span> |
+                <span id="sqlInsightsStats">Loading SQL data...</span>
+            </div>
+
+            <!-- 3-column grid for all growth data -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Column 1: 24hr Growth (Resources + SQL combined) -->
+                <div>
+                    <h3 class="text-lg font-semibold mb-3" style="color: #f0f3f6;">24-Hour Growth</h3>
+                    <div class="overflow-x-auto" style="max-height: 500px;">
+                        <table class="w-full">
+                            <thead class="bg-gray-100 sticky top-0">
+                                <tr>
+                                    <th class="px-3 py-3 text-left text-sm font-bold text-gray-700">Resource / Database</th>
+                                    <th class="px-3 py-3 text-right text-sm font-bold text-gray-700">Growth</th>
+                                    <th class="px-3 py-3 text-right text-sm font-bold text-gray-700">Size</th>
+                                </tr>
+                            </thead>
+                            <tbody id="growth24hrTable" style="font-size: 1rem;">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Column 2: 7-day Growth (Resources + SQL combined) -->
+                <div>
+                    <h3 class="text-lg font-semibold mb-3" style="color: #f0f3f6;">7-Day Growth</h3>
+                    <div class="overflow-x-auto" style="max-height: 500px;">
+                        <table class="w-full">
+                            <thead class="bg-gray-100 sticky top-0">
+                                <tr>
+                                    <th class="px-3 py-3 text-left text-sm font-bold text-gray-700">Resource / Database</th>
+                                    <th class="px-3 py-3 text-right text-sm font-bold text-gray-700">Growth</th>
+                                    <th class="px-3 py-3 text-right text-sm font-bold text-gray-700">Size</th>
+                                </tr>
+                            </thead>
+                            <tbody id="growth7dayTable" style="font-size: 1rem;">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Column 3: 30-day Growth (Resources + SQL combined) -->
+                <div>
+                    <h3 class="text-lg font-semibold mb-3" style="color: #f0f3f6;">30-Day Growth</h3>
+                    <div class="overflow-x-auto" style="max-height: 500px;">
+                        <table class="w-full">
+                            <thead class="bg-gray-100 sticky top-0">
+                                <tr>
+                                    <th class="px-3 py-3 text-left text-sm font-bold text-gray-700">Resource / Database</th>
+                                    <th class="px-3 py-3 text-right text-sm font-bold text-gray-700">Growth</th>
+                                    <th class="px-3 py-3 text-right text-sm font-bold text-gray-700">Size</th>
+                                </tr>
+                            </thead>
+                            <tbody id="growth30dayTable" style="font-size: 1rem;">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== SECTION 5: TOP STORAGE CONSUMERS ========== -->
+        <div class="card p-6 mb-6">
+            <h2 class="text-2xl font-bold mb-4" style="color: #f0f3f6;">Top Storage Consumers</h2>
+            <div class="mb-4" style="color: #9ca3af; font-weight: 600;">
+                <span id="consumersStats">LOADING CONSUMPTION DATA...</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Rank</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Protection Job</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Type</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Cluster</th>
+                            <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Physical Storage</th>
+                            <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Logical Size</th>
+                            <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Dedup Ratio</th>
+                            <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Files</th>
+                        </tr>
+                    </thead>
+                    <tbody id="consumersTable">
+                        <!-- Rows will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ========== SECTION 2.5: SQL DATABASE STORAGE ANALYSIS ========== -->
+        <div class="card p-6 mb-6" id="sqlStorageCard">
+            <h2 class="text-2xl font-bold mb-4" style="color: #f0f3f6;">SQL Database Storage Analysis</h2>
+            <div class="mb-4" style="color: #9ca3af; font-weight: 600;">
+                <span id="sqlStorageStats">ANALYZING SQL BACKUPS...</span>
+            </div>
+
+            <!-- Info Banner -->
+            <div class="mb-6 p-4 rounded" style="background: #21262d; border: 1px solid #30363d;">
+                <div style="color: #f0f3f6; font-weight: 600; margin-bottom: 8px;">Capacity Impact Metrics</div>
+                <div style="color: #9ca3af; font-size: 0.9em; line-height: 1.6;">
+                    <strong style="color: #f0f3f6;">Physical Backup Size</strong> = Actual cluster disk consumption (after compression/dedup)<br>
+                    <strong style="color: #f0f3f6;">Compression Ratio</strong> = Logical Size ÷ Physical Size (higher = better efficiency)<br>
+                    <strong style="color: #f0f3f6;">Daily Δ</strong> = Physical storage growth rate (TB/day)
+                </div>
+            </div>
+
+            <!-- Top 10 by Physical Storage -->
+            <div class="mb-8">
+                <h3 class="text-lg font-semibold mb-3" style="color: #f0f3f6;">Top 10 by Physical Storage</h3>
+                <div class="overflow-y-auto" style="max-height: 500px; overflow-x: hidden;">
+                    <table class="w-full" id="sqlTop10Table" style="table-layout: fixed; font-size: 0.8em; width: 100%;">
+                        <thead class="sticky top-0" style="background: #1c2128;">
+                            <tr>
+                                <th class="px-1 py-1 text-left text-xs font-semibold" style="color: #9ca3af; width: 25%;">Database</th>
+                                <th class="px-1 py-1 text-left text-xs font-semibold whitespace-nowrap" style="color: #9ca3af; width: 8%;">Cluster</th>
+                                <th class="px-1 py-1 text-right text-xs font-semibold tooltip-header whitespace-nowrap" style="color: #9ca3af; width: 10%;" data-tooltip="Current database size on SQL Server">DB Size</th>
+                                <th class="px-1 py-1 text-right text-xs font-semibold tooltip-header whitespace-nowrap" style="color: #9ca3af; width: 10%;" data-tooltip="Total physical storage on Cohesity cluster">Physical</th>
+                                <th class="px-1 py-1 text-right text-xs font-semibold tooltip-header whitespace-nowrap" style="color: #9ca3af; width: 11%;" data-tooltip="Daily change in database size">Daily Δ</th>
+                                <th class="px-1 py-1 text-right text-xs font-semibold tooltip-header whitespace-nowrap" style="color: #9ca3af; width: 12%;" data-tooltip="Daily change in cluster storage">Phys Daily</th>
+                                <th class="px-1 py-1 text-right text-xs font-semibold tooltip-header whitespace-nowrap" style="color: #9ca3af; width: 11%;" data-tooltip="7-day change in database size">Weekly Δ</th>
+                                <th class="px-1 py-1 text-right text-xs font-semibold tooltip-header whitespace-nowrap" style="color: #9ca3af; width: 13%;" data-tooltip="7-day change in cluster storage">Phys Weekly</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sqlTop10Body" style="color: #f0f3f6; font-family: 'Inter', sans-serif; font-weight: 600;">
+                            <tr><td colspan="8" class="text-center py-4" style="color: #666;">Loading SQL data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Top 5 Fastest Growing -->
+            <div>
+                <h3 class="text-lg font-semibold mb-3" style="color: #f0f3f6;">Fastest Growing Databases</h3>
+                <div class="overflow-y-auto" style="max-height: 400px; overflow-x: hidden;">
+                    <table class="w-full" id="sqlGrowersTable" style="table-layout: fixed; font-size: 0.8em; width: 100%;">
+                        <thead class="sticky top-0" style="background: #1c2128;">
+                            <tr>
+                                <th class="px-1 py-1 text-left text-xs font-semibold" style="color: #9ca3af; width: 25%;">Database</th>
+                                <th class="px-1 py-1 text-left text-xs font-semibold whitespace-nowrap" style="color: #9ca3af; width: 8%;">Cluster</th>
+                                <th class="px-1 py-1 text-right text-xs font-semibold tooltip-header whitespace-nowrap" style="color: #9ca3af; width: 10%;" data-tooltip="Current database size on SQL Server">DB Size</th>
+                                <th class="px-1 py-1 text-right text-xs font-semibold tooltip-header whitespace-nowrap" style="color: #9ca3af; width: 10%;" data-tooltip="Total physical storage on Cohesity cluster">Physical</th>
+                                <th class="px-1 py-1 text-right text-xs font-semibold tooltip-header whitespace-nowrap" style="color: #9ca3af; width: 11%;" data-tooltip="Daily change in database size">Daily Δ</th>
+                                <th class="px-1 py-1 text-right text-xs font-semibold tooltip-header whitespace-nowrap" style="color: #9ca3af; width: 12%;" data-tooltip="Daily change in cluster storage">Phys Daily</th>
+                                <th class="px-1 py-1 text-right text-xs font-semibold tooltip-header whitespace-nowrap" style="color: #9ca3af; width: 11%;" data-tooltip="7-day change in database size">Weekly Δ</th>
+                                <th class="px-1 py-1 text-right text-xs font-semibold tooltip-header whitespace-nowrap" style="color: #9ca3af; width: 13%;" data-tooltip="7-day change in cluster storage">Phys Weekly</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sqlGrowersBody" style="color: #f0f3f6; font-family: 'Inter', sans-serif; font-weight: 600;">
+                            <tr><td colspan="8" class="text-center py-4" style="color: #666;">Loading growth data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== SECTION 3: SYSTEM ANALYSIS (WARNINGS) ========== -->
+        <div class="card p-6 mb-6" id="systemAnalysisCard">
+            <h2 class="text-2xl font-bold mb-4" style="color: #f59e0b;">System Health Analysis</h2>
+            <div class="mb-4" style="color: #9ca3af; font-weight: 600;">
+                <span id="systemAnalysisStats">ANALYZING SYSTEM...</span>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Unprotected Resources -->
+                <div class="border-2 border-yellow-500 rounded p-4" style="background: rgba(255, 204, 0, 0.08);">
+                    <h3 class="text-lg font-bold mb-3" style="color: #f59e0b; font-family: 'Inter', sans-serif;">⚠ UNPROTECTED RESOURCES</h3>
+                    <div class="overflow-x-auto" style="max-height: 300px;">
+                        <table class="w-full">
+                            <thead class="sticky top-0">
+                                <tr>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold">Resource Name</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold">Type</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold">Cluster</th>
+                                </tr>
+                            </thead>
+                            <tbody id="unprotectedTable">
+                                <!-- Rows will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Duplicate Backups -->
+                <div class="border-2 border-orange-500 rounded p-4" style="background: rgba(255, 149, 0, 0.08);">
+                    <h3 class="text-lg font-bold mb-3" style="color: #f59e0b; font-family: 'Inter', sans-serif;">⚠ DUPLICATE BACKUPS (Multi-Cluster)</h3>
+                    <div class="overflow-x-auto" style="max-height: 300px;">
+                        <table class="w-full">
+                            <thead class="sticky top-0">
+                                <tr>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold">Resource Name</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold">Type</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold">Protection Jobs</th>
+                                </tr>
+                            </thead>
+                            <tbody id="duplicatesTable">
+                                <!-- Rows will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== SECTION 8: STORAGE HEALTH - ORPHANED DATA ========== -->
+        <div class="card p-6 mb-6" id="storageHealthCard">
+            <h2 class="text-2xl font-bold mb-4" style="color: #ef4444;">Storage Health - Orphaned Data</h2>
+            <div class="mb-4" style="color: #9ca3af; font-weight: 600;">
+                <span id="storageHealthStats">LOADING STORAGE HEALTH DATA...</span>
+            </div>
+
+            <!-- Storage Health Summary Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+                <div class="border-2 border-red-500 rounded p-4" style="background: rgba(255, 107, 107, 0.08);">
+                    <div style="color: #ef4444; font-size: 0.85rem; font-weight: 700; letter-spacing: 1px;">DELETED JOBS</div>
+                    <div id="shDeletedJobs" style="color: #f0f3f6; font-size: 2rem; font-weight: 700; font-family: 'Inter', sans-serif; margin-top: 8px;">-</div>
+                </div>
+                <div class="border-2 border-orange-500 rounded p-4" style="background: rgba(255, 149, 0, 0.08);">
+                    <div style="color: #f59e0b; font-size: 0.85rem; font-weight: 700; letter-spacing: 1px;">ORPHANED SNAPS</div>
+                    <div id="shOrphanedSnaps" style="color: #f0f3f6; font-size: 2rem; font-weight: 700; font-family: 'Inter', sans-serif; margin-top: 8px;">-</div>
+                </div>
+                <div class="border-2 border-yellow-500 rounded p-4" style="background: rgba(255, 204, 0, 0.08);">
+                    <div style="color: #f59e0b; font-size: 0.85rem; font-weight: 700; letter-spacing: 1px;">ORPHANED STORAGE</div>
+                    <div id="shOrphanedStorage" style="color: #f0f3f6; font-size: 2rem; font-weight: 700; font-family: 'Inter', sans-serif; margin-top: 8px;">- TB</div>
+                </div>
+                <div class="border-2 border-cyan-500 rounded p-4" style="background: rgba(59, 130, 246, 0.1);">
+                    <div style="color: #3b82f6; font-size: 0.85rem; font-weight: 700; letter-spacing: 1px;">TOTAL USED</div>
+                    <div id="shTotalUsed" style="color: #f0f3f6; font-size: 2rem; font-weight: 700; font-family: 'Inter', sans-serif; margin-top: 8px;">- TB</div>
+                </div>
+                <div class="rounded p-4" style="background: #21262d; border: 1px solid #30363d;">
+                    <div style="color: #22c55e; font-size: 0.85rem; font-weight: 700; letter-spacing: 1px;">AVG DEDUPE</div>
+                    <div id="shDedupeRatio" style="color: #f0f3f6; font-size: 2rem; font-weight: 700; font-family: 'Inter', sans-serif; margin-top: 8px;">-x</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Deleted Jobs with Snapshots -->
+                <div class="border-2 border-red-500 rounded p-4" style="background: rgba(255, 107, 107, 0.05);">
+                    <h3 class="text-lg font-bold mb-3" style="color: #ef4444; font-family: 'Inter', sans-serif;">DELETED JOBS (RETAINED SNAPSHOTS)</h3>
+                    <div class="overflow-x-auto" style="max-height: 350px;">
+                        <table class="w-full">
+                            <thead class="sticky top-0" style="background: rgba(20, 20, 20, 0.98);">
+                                <tr>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold">Job Name</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold">Type</th>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold">Cluster</th>
+                                    <th class="px-3 py-2 text-right text-xs font-semibold">Snapshots</th>
+                                    <th class="px-3 py-2 text-right text-xs font-semibold">Storage</th>
+                                    <th class="px-3 py-2 text-right text-xs font-semibold">Age</th>
+                                </tr>
+                            </thead>
+                            <tbody id="deletedJobsTable">
+                                <!-- Rows will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Cluster Storage Health -->
+                <div class="border-2 border-cyan-500 rounded p-4" style="background: rgba(59, 130, 246, 0.1);">
+                    <h3 class="text-lg font-bold mb-3" style="color: #3b82f6; font-family: 'Inter', sans-serif;">CLUSTER STORAGE STATUS</h3>
+                    <div class="overflow-x-auto" style="max-height: 350px;">
+                        <table class="w-full">
+                            <thead class="sticky top-0" style="background: rgba(20, 20, 20, 0.98);">
+                                <tr>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold">Cluster</th>
+                                    <th class="px-3 py-2 text-right text-xs font-semibold">Used</th>
+                                    <th class="px-3 py-2 text-right text-xs font-semibold">Capacity</th>
+                                    <th class="px-3 py-2 text-right text-xs font-semibold">Used %</th>
+                                    <th class="px-3 py-2 text-right text-xs font-semibold">Dedupe</th>
+                                    <th class="px-3 py-2 text-center text-xs font-semibold">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="clusterStorageTable">
+                                <!-- Rows will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stale Snapshots Section -->
+            <div class="mt-6 border-2 border-yellow-500 rounded p-4" style="background: rgba(255, 204, 0, 0.05);">
+                <h3 class="text-lg font-bold mb-3" style="color: #f59e0b; font-family: 'Inter', sans-serif;">STALE SNAPSHOTS (> 1 YEAR OLD)</h3>
+                <div class="overflow-x-auto" style="max-height: 250px;">
+                    <table class="w-full">
+                        <thead class="sticky top-0" style="background: rgba(20, 20, 20, 0.98);">
+                            <tr>
+                                <th class="px-3 py-2 text-left text-xs font-semibold">Protection Job</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold">Cluster</th>
+                                <th class="px-3 py-2 text-right text-xs font-semibold">Total Snaps</th>
+                                <th class="px-3 py-2 text-right text-xs font-semibold">Stale Snaps</th>
+                                <th class="px-3 py-2 text-right text-xs font-semibold">Oldest</th>
+                            </tr>
+                        </thead>
+                        <tbody id="staleSnapshotsTable">
+                            <!-- Rows will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== SECTION 7: MICROSOFT 365 CLOUD BACKUPS (BOTTOM) ========== -->
+        <div class="card p-6 mb-6" id="m365Card">
+            <h2 class="text-2xl font-bold mb-4" style="color: #3b82f6;">Microsoft 365 Cloud Backups</h2>
+            <div class="mb-4" style="color: #9ca3af; font-weight: 600;">
+                <span id="m365Stats">LOADING M365 DATA...</span>
+            </div>
+
+            <!-- M365 Summary Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="border-2 border-cyan-500 rounded p-4" style="background: rgba(59, 130, 246, 0.1);">
+                    <div style="color: #3b82f6; font-size: 0.85rem; font-weight: 700; letter-spacing: 1px;">TENANTS</div>
+                    <div id="m365Tenants" style="color: #f0f3f6; font-size: 2rem; font-weight: 700; font-family: 'Inter', sans-serif; margin-top: 8px;">-</div>
+                </div>
+                <div class="rounded p-4" style="background: #21262d; border: 1px solid #30363d;">
+                    <div style="color: #22c55e; font-size: 0.85rem; font-weight: 700; letter-spacing: 1px;">PROTECTED USERS</div>
+                    <div id="m365Users" style="color: #f0f3f6; font-size: 2rem; font-weight: 700; font-family: 'Inter', sans-serif; margin-top: 8px;">-</div>
+                </div>
+                <div class="border-2 border-orange-500 rounded p-4" style="background: rgba(255, 149, 0, 0.05);">
+                    <div style="color: #f59e0b; font-size: 0.85rem; font-weight: 700; letter-spacing: 1px;">CAPACITY</div>
+                    <div id="m365Capacity" style="color: #f0f3f6; font-size: 2rem; font-weight: 700; font-family: 'Inter', sans-serif; margin-top: 8px;">- GB</div>
+                </div>
+                <div class="border-2 border-red-500 rounded p-4" style="background: rgba(239, 68, 68, 0.1);">
+                    <div style="color: #ef4444; font-size: 0.85rem; font-weight: 700; letter-spacing: 1px;">RECENT FAILURES</div>
+                    <div id="m365Failures" style="color: #f0f3f6; font-size: 2rem; font-weight: 700; font-family: 'Inter', sans-serif; margin-top: 8px;">-</div>
+                </div>
+            </div>
+
+            <!-- M365 Tenant Sections -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- Centaurus (centcap.net) -->
+                <div class="border-2 rounded-lg p-4" style="border-color: #3b82f6; background: rgba(59, 130, 246, 0.1);">
+                    <h3 class="text-xl font-bold mb-4" style="color: #3b82f6; font-family: 'Inter', sans-serif;">🏢 CENTAURUS</h3>
+
+                    <!-- Centaurus Stats -->
+                    <div class="grid grid-cols-3 gap-3 mb-4">
+                        <div class="text-center p-2 rounded" style="background: rgba(59, 130, 246, 0.1);">
+                            <div style="color: #3b82f6; font-size: 0.75rem; font-weight: 700; letter-spacing: 1px;">USERS</div>
+                            <div id="centaurusUsers" style="color: #f0f3f6; font-size: 1.5rem; font-weight: 700; font-family: 'Inter', sans-serif;">-</div>
+                        </div>
+                        <div class="text-center p-2 rounded" style="background: rgba(59, 130, 246, 0.1);">
+                            <div style="color: #3b82f6; font-size: 0.75rem; font-weight: 700; letter-spacing: 1px;">CAPACITY</div>
+                            <div id="centaurusCapacity" style="color: #f0f3f6; font-size: 1.5rem; font-weight: 700; font-family: 'Inter', sans-serif;">-</div>
+                        </div>
+                        <div class="text-center p-2 rounded" style="background: rgba(59, 130, 246, 0.1);">
+                            <div style="color: #3b82f6; font-size: 0.75rem; font-weight: 700; letter-spacing: 1px;">PROTECTED</div>
+                            <div id="centaurusProtected" style="color: #f0f3f6; font-size: 1.5rem; font-weight: 700; font-family: 'Inter', sans-serif;">-</div>
+                        </div>
+                    </div>
+
+                    <!-- Centaurus Objects Table -->
+                    <div class="overflow-x-auto" style="max-height: 280px;">
+                        <table class="w-full">
+                            <thead class="sticky top-0" style="background: rgba(59, 130, 246, 0.1);">
+                                <tr>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold" style="color: #3b82f6;">Type</th>
+                                    <th class="px-3 py-2 text-center text-xs font-semibold" style="color: #3b82f6;">Count</th>
+                                    <th class="px-3 py-2 text-right text-xs font-semibold" style="color: #3b82f6;">Size</th>
+                                </tr>
+                            </thead>
+                            <tbody id="centaurusObjectsTable">
+                                <tr><td colspan="3" class="px-3 py-4 text-center" style="color: #888888;">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Copperwood (ceflp.com) -->
+                <div class="border-2 rounded-lg p-4" style="border-color: #f59e0b; background: rgba(245, 158, 11, 0.1);">
+                    <h3 class="text-xl font-bold mb-4" style="color: #f59e0b; font-family: 'Inter', sans-serif;">🏢 COPPERWOOD</h3>
+
+                    <!-- Copperwood Stats -->
+                    <div class="grid grid-cols-3 gap-3 mb-4">
+                        <div class="text-center p-2 rounded" style="background: rgba(245, 158, 11, 0.1);">
+                            <div style="color: #f59e0b; font-size: 0.75rem; font-weight: 700; letter-spacing: 1px;">USERS</div>
+                            <div id="copperwoodUsers" style="color: #f0f3f6; font-size: 1.5rem; font-weight: 700; font-family: 'Inter', sans-serif;">-</div>
+                        </div>
+                        <div class="text-center p-2 rounded" style="background: rgba(245, 158, 11, 0.1);">
+                            <div style="color: #f59e0b; font-size: 0.75rem; font-weight: 700; letter-spacing: 1px;">CAPACITY</div>
+                            <div id="copperwoodCapacity" style="color: #f0f3f6; font-size: 1.5rem; font-weight: 700; font-family: 'Inter', sans-serif;">-</div>
+                        </div>
+                        <div class="text-center p-2 rounded" style="background: rgba(245, 158, 11, 0.1);">
+                            <div style="color: #f59e0b; font-size: 0.75rem; font-weight: 700; letter-spacing: 1px;">PROTECTED</div>
+                            <div id="copperwoodProtected" style="color: #f0f3f6; font-size: 1.5rem; font-weight: 700; font-family: 'Inter', sans-serif;">-</div>
+                        </div>
+                    </div>
+
+                    <!-- Copperwood Objects Table -->
+                    <div class="overflow-x-auto" style="max-height: 280px;">
+                        <table class="w-full">
+                            <thead class="sticky top-0" style="background: rgba(245, 158, 11, 0.1);">
+                                <tr>
+                                    <th class="px-3 py-2 text-left text-xs font-semibold" style="color: #f59e0b;">Type</th>
+                                    <th class="px-3 py-2 text-center text-xs font-semibold" style="color: #f59e0b;">Count</th>
+                                    <th class="px-3 py-2 text-right text-xs font-semibold" style="color: #f59e0b;">Size</th>
+                                </tr>
+                            </thead>
+                            <tbody id="copperwoodObjectsTable">
+                                <tr><td colspan="3" class="px-3 py-4 text-center" style="color: #888888;">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent M365 Failures (Full Width) -->
+            <div>
+                <h3 class="text-lg font-bold mb-3" style="color: #ef4444; font-family: 'Inter', sans-serif;">RECENT M365 BACKUP FAILURES</h3>
+                <div class="overflow-x-auto" style="max-height: 250px;">
+                    <table class="w-full">
+                        <thead class="sticky top-0">
+                            <tr>
+                                <th class="px-3 py-2 text-left text-xs font-semibold">Tenant</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold">Protection Group</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold">Time</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold">Failed Objects</th>
+                            </tr>
+                        </thead>
+                        <tbody id="m365FailuresTable">
+                            <tr><td colspan="4" class="px-3 py-4 text-center" style="color: #888888;">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        // Auto-detect API endpoint: use current hostname for remote access, or localhost for local
+        const API_ENDPOINT = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3100'
+            : `http://${window.location.hostname}:3100`;
+        console.log('API Endpoint:', API_ENDPOINT);
+        let capacityChart = null;
+
+        // Initialize dashboard on load
+        document.addEventListener('DOMContentLoaded', () => {
+            // FAST LOAD: Show cached data immediately
+            const cached = loadFromCache();
+
+            // Then refresh with live data in background
+            if (cached) {
+                console.log('[DASHBOARD] Showing cached data, refreshing in background...');
+                setTimeout(() => refreshDashboard(), 100);
+            } else {
+                refreshDashboard();
+            }
+
+            // Auto-refresh at 2 AM daily
+            scheduleAutoRefresh();
+        });
+
+        async function askClaudeDesktop() {
+            try {
+                // Gather current dashboard context
+                const summaryElem = document.getElementById('executiveSummary');
+                const consumersElem = document.getElementById('consumersStats');
+                const lastUpdateElem = document.getElementById('lastUpdate');
+
+                // Build context string
+                let context = '=== COHESITY CAPACITY DASHBOARD CONTEXT ===\n\n';
+                context += `Last Updated: ${lastUpdateElem?.textContent || 'Unknown'}\n\n`;
+
+                if (summaryElem && summaryElem.textContent.trim()) {
+                    context += 'SYSTEM ANALYSIS:\n';
+                    context += summaryElem.textContent.trim() + '\n\n';
+                }
+
+                if (consumersElem && consumersElem.textContent.trim()) {
+                    context += 'STORAGE CONSUMERS:\n';
+                    context += consumersElem.textContent.trim() + '\n\n';
+                }
+
+                // Get cluster status
+                const clustersGrid = document.getElementById('clustersGrid');
+                if (clustersGrid) {
+                    context += 'CLUSTER STATUS:\n';
+                    const clusterCards = clustersGrid.querySelectorAll('.cluster-card');
+                    clusterCards.forEach(card => {
+                        const text = card.textContent.replace(/\s+/g, ' ').trim();
+                        context += text + '\n';
+                    });
+                    context += '\n';
+                }
+
+                context += '=== END CONTEXT ===\n\n';
+                context += 'You can now ask Claude AI questions about this data, such as:\n';
+                context += '- "Which cluster needs attention first?"\n';
+                context += '- "What\'s growing the fastest?"\n';
+                context += '- "When should I add more storage?"\n';
+                context += '- "Analyze the capacity trends"\n';
+
+                // Copy to clipboard
+                await navigator.clipboard.writeText(context);
+
+                // Try to open Claude Desktop (may not work on all systems)
+                const claudeUrls = [
+                    'claude://new',
+                    'claude://',
+                    'https://claude.ai/new'
+                ];
+
+                let opened = false;
+                for (const url of claudeUrls) {
+                    try {
+                        window.open(url, '_blank');
+                        opened = true;
+                        break;
+                    } catch (e) {
+                        continue;
+                    }
+                }
+
+                // Show success message
+                const message = opened
+                    ? '✅ Context copied to clipboard!\n\nClaude Desktop should open. Paste the context and ask your question.'
+                    : '✅ Context copied to clipboard!\n\nOpen Claude Desktop manually and paste to get started.';
+
+                alert(message);
+
+            } catch (error) {
+                console.error('Error preparing Claude context:', error);
+                alert('❌ Could not prepare context. Error: ' + error.message);
+            }
+        }
+
+        // Helper function to format storage size with automatic unit conversion
+        function formatStorageSize(sizeGB) {
+            if (!sizeGB || sizeGB === 0) return 'N/A';
+
+            // Convert to TB if >= 1000 GB
+            if (sizeGB >= 1000) {
+                const sizeTB = sizeGB / 1024;
+                return sizeTB.toFixed(1) + ' TB';
+            }
+
+            return sizeGB.toFixed(1) + ' GB';
+        }
+
+        async function refreshDashboard() {
+            try {
+                console.log('[DASHBOARD] Starting refresh...');
+                const refreshBtn = document.getElementById('refreshBtn');
+                const lastUpdateElem = document.getElementById('lastUpdate');
+
+                // Show loading state
+                refreshBtn.disabled = true;
+                refreshBtn.textContent = '⟳ LOADING...';
+                lastUpdateElem.textContent = 'Refreshing data...';
+
+                // Fetch all data in parallel
+                const [capacityData, failuresData, alertsData, systemAnalysisData, topGrowingData, consumersData, sqlGrowersData, sqlStorageData, m365Summary, m365TopUsers, m365Failures, storageHealthData] = await Promise.all([
+                    fetchCapacityData(),
+                    fetchFailures(),
+                    fetchAlerts(),
+                    fetchSystemAnalysis(),
+                    fetchTopGrowingData(),
+                    fetchConsumersData(),
+                    fetchSQLTopGrowers(),
+                    fetchSQLStorageAnalysis().catch(() => ({ top10Physical: [], topGrowers: [], summary: { totalDatabases: 0, totalPhysicalTB: 0 } })),
+                    fetchM365Summary().catch(() => ({ tenants: 0, protectedObjects: 0, totalCapacityGB: 0, failedRuns: 0 })),
+                    fetchM365TopUsers().catch(() => ({ topUsers: [] })),
+                    fetchM365Failures().catch(() => ({ failures: [] })),
+                    fetchStorageHealth().catch(() => ({ deletedJobs: [], gcHealth: [], staleSnapshots: [], summary: {}, stale: true }))
+                ]);
+
+                console.log('[DASHBOARD] Data fetched:', {
+                    capacityData,
+                    failuresData,
+                    systemAnalysisData,
+                    topGrowingData,
+                    consumersData,
+                    sqlGrowersData
+                });
+
+                // Update UI
+                console.log('[DASHBOARD] Updating clusters grid (capacity + alerts)...');
+                updateClustersGrid(capacityData, alertsData);
+                console.log('[DASHBOARD] Updating failures...');
+                updateFailures(failuresData);
+                console.log('[DASHBOARD] Updating system analysis...');
+                updateSystemAnalysis(systemAnalysisData);
+                console.log('[DASHBOARD] Updating growth insights...');
+                updateMergedGrowthInsights(topGrowingData, sqlGrowersData);
+                console.log('[DASHBOARD] Updating SQL insights...');
+                updateSQLInsights(sqlGrowersData);
+                console.log('[DASHBOARD] Updating consumers table...');
+                updateConsumersTable(consumersData);
+                console.log('[DASHBOARD] Updating SQL storage analysis...');
+                updateSQLStorageAnalysis(sqlStorageData);
+                console.log('[DASHBOARD] Updating executive summary...');
+                updateExecutiveSummary(capacityData);
+                console.log('[DASHBOARD] Updating recommendations...');
+                updateRecommendations(capacityData);
+                console.log('[DASHBOARD] Updating M365 dashboard...');
+                updateM365Dashboard(m365Summary, m365TopUsers, m365Failures);
+                console.log('[DASHBOARD] Updating storage health...');
+                updateStorageHealth(storageHealthData);
+
+                // Update timestamp and restore button
+                const now = new Date();
+                lastUpdateElem.textContent = now.toLocaleString();
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = '↻ REFRESH DATA';
+
+                // Save to localStorage for fast load on next visit
+                try {
+                    localStorage.setItem('dashboardData', JSON.stringify({
+                        timestamp: now.toISOString(),
+                        capacity: capacityData,
+                        failures: failuresData,
+                        systemAnalysis: systemAnalysisData,
+                        topGrowing: topGrowingData,
+                        consumers: consumersData,
+                        sqlGrowers: sqlGrowersData,
+                        sqlStorage: sqlStorageData,
+                        m365: { summary: m365Summary, topUsers: m365TopUsers, failures: m365Failures },
+                        storageHealth: storageHealthData
+                    }));
+                    console.log('[CACHE] Dashboard data saved to localStorage');
+                } catch (e) {
+                    console.warn('[CACHE] Failed to save to localStorage:', e.message);
+                }
+
+            } catch (error) {
+                console.error('Error refreshing dashboard:', error);
+
+                // Restore button state
+                const refreshBtn = document.getElementById('refreshBtn');
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = '↻ REFRESH DATA';
+
+                // Try to load from localStorage if API fails
+                loadFromCache();
+            }
+        }
+
+        async function fetchCapacityData() {
+            // Call your MCP server's analyze_multi_cluster_capacity
+            const response = await fetch(`${API_ENDPOINT}/api/capacity`);
+            if (!response.ok) throw new Error('Failed to fetch capacity data');
+            return await response.json();
+        }
+
+        async function fetchTrendsData() {
+            // Call your MCP server's get_capacity_trends_historical
+            const response = await fetch(`${API_ENDPOINT}/api/trends?days=30`);
+            if (!response.ok) throw new Error('Failed to fetch trends data');
+            return await response.json();
+        }
+
+        async function fetchTopGrowingData() {
+            // Fetch data for 1 day, 7 days, and 30 days in parallel
+            const [data1day, data7day, data30day] = await Promise.all([
+                fetch(`${API_ENDPOINT}/api/top-growing?days=1&limit=20`).then(r => r.json()),
+                fetch(`${API_ENDPOINT}/api/top-growing?days=7&limit=20`).then(r => r.json()),
+                fetch(`${API_ENDPOINT}/api/top-growing?days=30&limit=20`).then(r => r.json())
+            ]);
+
+            return { data1day, data7day, data30day };
+        }
+
+        async function fetchConsumersData() {
+            const response = await fetch(`${API_ENDPOINT}/api/consumers?limit=15`);
+            if (!response.ok) throw new Error('Failed to fetch consumers data');
+            return await response.json();
+        }
+
+        async function fetchSQLTopGrowers() {
+            const response = await fetch(`${API_ENDPOINT}/api/sql-top-growers?topN=5`);
+            if (!response.ok) throw new Error('Failed to fetch SQL top growers');
+            return await response.json();
+        }
+
+        async function fetchSystemAnalysis() {
+            const response = await fetch(`${API_ENDPOINT}/api/system-analysis`);
+            if (!response.ok) throw new Error('Failed to fetch system analysis');
+            return await response.json();
+        }
+
+        async function fetchFailures() {
+            const response = await fetch(`${API_ENDPOINT}/api/failures?days=7`);
+            if (!response.ok) throw new Error('Failed to fetch failures');
+            return await response.json();
+        }
+
+        async function fetchAlerts() {
+            const response = await fetch(`${API_ENDPOINT}/api/alerts?days=1`);
+            if (!response.ok) throw new Error('Failed to fetch alerts');
+            return await response.json();
+        }
+
+        // ==================== M365 FUNCTIONS ====================
+
+        async function fetchSQLStorageAnalysis() {
+            const response = await fetch(`${API_ENDPOINT}/api/sql-storage-analysis`);
+            if (!response.ok) throw new Error('Failed to fetch SQL storage analysis');
+            return await response.json();
+        }
+
+        async function fetchM365Summary() {
+            const response = await fetch(`${API_ENDPOINT}/api/m365-summary`);
+            if (!response.ok) throw new Error('Failed to fetch M365 summary');
+            return await response.json();
+        }
+
+        // ==================== STORAGE HEALTH FUNCTIONS ====================
+
+        async function fetchStorageHealth() {
+            const response = await fetch(`${API_ENDPOINT}/api/dashboard/storage-health`);
+            if (!response.ok) throw new Error('Failed to fetch storage health');
+            return await response.json();
+        }
+
+        function updateStorageHealth(data) {
+            console.log('[STORAGE-HEALTH] updateStorageHealth called', data);
+
+            const statsElem = document.getElementById('storageHealthStats');
+            const deletedJobsElem = document.getElementById('shDeletedJobs');
+            const orphanedSnapsElem = document.getElementById('shOrphanedSnaps');
+            const orphanedStorageElem = document.getElementById('shOrphanedStorage');
+            const totalUsedElem = document.getElementById('shTotalUsed');
+            const dedupeElem = document.getElementById('shDedupeRatio');
+
+            if (data.error && data.stale) {
+                statsElem.innerHTML = `<strong style="color: #f59e0b;">Cache not available</strong> - Run CollectStorageHealthMetrics.py to generate data`;
+                return;
+            }
+
+            const summary = data.summary || {};
+
+            // Update summary cards
+            if (deletedJobsElem) deletedJobsElem.textContent = summary.totalDeletedJobs || 0;
+            if (orphanedSnapsElem) orphanedSnapsElem.textContent = (summary.totalOrphanedSnapshots || 0).toLocaleString();
+            if (orphanedStorageElem) orphanedStorageElem.textContent = `${(summary.totalOrphanedStorageTB || 0).toFixed(1)} TB`;
+
+            // Calculate total used across clusters
+            const totalUsed = (data.gcHealth || []).reduce((sum, c) => sum + (c.usedCapacityTB || 0), 0);
+            if (totalUsedElem) totalUsedElem.textContent = `${totalUsed.toFixed(1)} TB`;
+
+            // Calculate average dedupe ratio
+            const gcClusters = data.gcHealth || [];
+            const avgDedupe = gcClusters.length > 0
+                ? gcClusters.reduce((sum, c) => sum + (c.dedupeRatio || 0), 0) / gcClusters.length
+                : 0;
+            if (dedupeElem) dedupeElem.textContent = `${avgDedupe.toFixed(1)}x`;
+
+            // Update stats line
+            const staleText = data.stale ? ' <span style="color: #f59e0b;">(STALE)</span>' : '';
+            const cacheAge = data.cacheAgeHours ? ` | Updated ${data.cacheAgeHours.toFixed(1)}h ago` : '';
+
+            if (summary.totalDeletedJobs === 0) {
+                statsElem.innerHTML = `<strong style="color: #22c55e;">No orphaned data detected</strong>${cacheAge}${staleText}`;
+            } else {
+                statsElem.innerHTML = `<strong style="color: #ef4444;">${summary.totalDeletedJobs}</strong> deleted jobs consuming <strong style="color: #f59e0b;">${(summary.totalOrphanedStorageTB || 0).toFixed(1)} TB</strong>${cacheAge}${staleText}`;
+            }
+
+            // Update deleted jobs table
+            const deletedJobsTable = document.getElementById('deletedJobsTable');
+            if (deletedJobsTable && data.deletedJobs) {
+                deletedJobsTable.innerHTML = '';
+
+                // Sort by storage descending
+                const sortedJobs = [...data.deletedJobs].sort((a, b) => (b.physicalGB || 0) - (a.physicalGB || 0));
+
+                sortedJobs.forEach(job => {
+                    const tr = document.createElement('tr');
+                    tr.style.borderBottom = '1px solid rgba(255, 255, 255, 0.1)';
+
+                    // Format storage
+                    let storageStr = '';
+                    if (job.physicalGB >= 1024) {
+                        storageStr = `${(job.physicalGB / 1024).toFixed(2)} TB`;
+                    } else {
+                        storageStr = `${job.physicalGB.toFixed(1)} GB`;
+                    }
+
+                    // Environment type color
+                    let typeColor = '#888';
+                    if (job.environment === 'kSQL') typeColor = '#3b82f6';
+                    else if (job.environment === 'kExchange') typeColor = '#f59e0b';
+                    else if (job.environment === 'kVMware') typeColor = '#22c55e';
+
+                    // Clean job name
+                    const displayName = job.jobName.replace('_DELETED_', '');
+
+                    tr.innerHTML = `
+                        <td class="px-3 py-2 text-xs" style="color: #ef4444;">${displayName}</td>
+                        <td class="px-3 py-2 text-xs" style="color: ${typeColor};">${job.environment.replace('k', '')}</td>
+                        <td class="px-3 py-2 text-xs" style="color: #888;">${job.cluster}</td>
+                        <td class="px-3 py-2 text-xs text-right" style="color: #f59e0b;">${job.snapshotCount.toLocaleString()}</td>
+                        <td class="px-3 py-2 text-xs text-right font-semibold" style="color: #f59e0b;">${storageStr}</td>
+                        <td class="px-3 py-2 text-xs text-right" style="color: #888;">${job.ageYears}y</td>
+                    `;
+                    deletedJobsTable.appendChild(tr);
+                });
+            }
+
+            // Update cluster storage table
+            const clusterTable = document.getElementById('clusterStorageTable');
+            if (clusterTable && data.gcHealth) {
+                clusterTable.innerHTML = '';
+
+                data.gcHealth.forEach(cluster => {
+                    const tr = document.createElement('tr');
+                    tr.style.borderBottom = '1px solid rgba(255, 255, 255, 0.1)';
+
+                    // Status color and icon
+                    let statusColor = '#22c55e';
+                    let statusText = 'HEALTHY';
+                    if (cluster.gcHealthStatus === 'CRITICAL') {
+                        statusColor = '#ef4444';
+                        statusText = 'CRITICAL';
+                    } else if (cluster.gcHealthStatus === 'WARNING') {
+                        statusColor = '#f59e0b';
+                        statusText = 'WARNING';
+                    }
+
+                    // Usage bar color
+                    let usageColor = '#22c55e';
+                    if (cluster.usedPercent > 85) usageColor = '#ef4444';
+                    else if (cluster.usedPercent > 75) usageColor = '#f59e0b';
+
+                    tr.innerHTML = `
+                        <td class="px-3 py-2 text-xs font-semibold" style="color: #3b82f6;">${cluster.cluster}</td>
+                        <td class="px-3 py-2 text-xs text-right" style="color: #f0f3f6;">${cluster.usedCapacityTB} TB</td>
+                        <td class="px-3 py-2 text-xs text-right" style="color: #888;">${cluster.totalCapacityTB} TB</td>
+                        <td class="px-3 py-2 text-xs text-right font-semibold" style="color: ${usageColor};">${cluster.usedPercent}%</td>
+                        <td class="px-3 py-2 text-xs text-right" style="color: #3b82f6;">${cluster.dedupeRatio}x</td>
+                        <td class="px-3 py-2 text-xs text-center font-semibold" style="color: ${statusColor};">${statusText}</td>
+                    `;
+                    clusterTable.appendChild(tr);
+                });
+            }
+
+            // Update stale snapshots table
+            const staleTable = document.getElementById('staleSnapshotsTable');
+            if (staleTable && data.staleSnapshots) {
+                staleTable.innerHTML = '';
+
+                // Sort by stale snapshot count descending
+                const sortedStale = [...data.staleSnapshots].sort((a, b) => (b.staleSnapshots || 0) - (a.staleSnapshots || 0));
+
+                sortedStale.slice(0, 20).forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.style.borderBottom = '1px solid rgba(255, 255, 255, 0.1)';
+
+                    // Format date
+                    const oldestDate = item.oldestSnapshot ? new Date(item.oldestSnapshot).toLocaleDateString() : 'Unknown';
+
+                    tr.innerHTML = `
+                        <td class="px-3 py-2 text-xs" style="color: #f59e0b;">${item.jobName}</td>
+                        <td class="px-3 py-2 text-xs" style="color: #888;">${item.cluster}</td>
+                        <td class="px-3 py-2 text-xs text-right" style="color: #f0f3f6;">${item.totalSnapshots.toLocaleString()}</td>
+                        <td class="px-3 py-2 text-xs text-right font-semibold" style="color: #f59e0b;">${item.staleSnapshots.toLocaleString()}</td>
+                        <td class="px-3 py-2 text-xs text-right" style="color: #888;">${oldestDate}</td>
+                    `;
+                    staleTable.appendChild(tr);
+                });
+            }
+
+            console.log('[STORAGE-HEALTH] Update complete');
+        }
+
+        async function loadStorageHealth() {
+            try {
+                const data = await fetchStorageHealth();
+                updateStorageHealth(data);
+                return data;
+            } catch (error) {
+                console.error('[STORAGE-HEALTH] Error loading storage health:', error);
+                document.getElementById('storageHealthStats').innerHTML =
+                    `<strong style="color: #ef4444;">Error loading storage health data</strong>`;
+            }
+        }
+
+        // ==================== END STORAGE HEALTH ====================
+
+        async function fetchM365TopUsers() {
+            const response = await fetch(`${API_ENDPOINT}/api/m365-top-users?topN=10`);
+            if (!response.ok) throw new Error('Failed to fetch M365 top users');
+            return await response.json();
+        }
+
+        async function fetchM365Failures() {
+            const response = await fetch(`${API_ENDPOINT}/api/m365-failures?days=7`);
+            if (!response.ok) throw new Error('Failed to fetch M365 failures');
+            return await response.json();
+        }
+
+        function updateM365Dashboard(summary, topUsers, failures) {
+            console.log('[M365] updateM365Dashboard called', { summary, topUsers, failures });
+            const statsElem = document.getElementById('m365Stats');
+            const tenantsElem = document.getElementById('m365Tenants');
+            const usersElem = document.getElementById('m365Users');
+            const capacityElem = document.getElementById('m365Capacity');
+            const failuresElem = document.getElementById('m365Failures');
+            const failuresTable = document.getElementById('m365FailuresTable');
+
+            // Update summary stats
+            if (tenantsElem) tenantsElem.textContent = summary.tenants || 0;
+            if (usersElem) usersElem.textContent = summary.protectedObjects || 0;
+            if (capacityElem) capacityElem.textContent = `${summary.totalCapacityGB || 0} GB`;
+            if (failuresElem) failuresElem.textContent = summary.failedRuns || 0;
+
+            // Update stats line
+            if (summary.failedRuns === 0) {
+                statsElem.innerHTML = `<strong style="color: #22c55e;">✓ All M365 backups healthy</strong> - ${summary.tenants} tenants, ${summary.protectedObjects} users protected`;
+            } else {
+                statsElem.innerHTML = `<strong style="color: #ef4444;">${summary.failedRuns}</strong> recent failures | ${summary.tenants} tenants | ${summary.protectedObjects} users protected`;
+            }
+
+            // Separate objects by tenant
+            const centaurusObjects = [];
+            const copperwoodObjects = [];
+
+            if (topUsers.topUsers && topUsers.topUsers.length > 0) {
+                topUsers.topUsers.forEach(user => {
+                    if (user.tenant === 'centcap.net') {
+                        centaurusObjects.push(user);
+                    } else if (user.tenant === 'ceflp.com') {
+                        copperwoodObjects.push(user);
+                    }
+                });
+            }
+
+            // Update Centaurus section
+            const centaurusUsersElem = document.getElementById('centaurusUsers');
+            const centaurusCapacityElem = document.getElementById('centaurusCapacity');
+            const centaurusProtectedElem = document.getElementById('centaurusProtected');
+            const centaurusTable = document.getElementById('centaurusObjectsTable');
+
+            const centaurusTotal = centaurusObjects.find(obj => obj.type === 'Total');
+            if (centaurusTotal) {
+                centaurusUsersElem.textContent = centaurusTotal.count || 0;
+                centaurusCapacityElem.textContent = `${centaurusTotal.sizeGB} GB`;
+                centaurusProtectedElem.textContent = centaurusTotal.count || 0;
+            }
+
+            centaurusTable.innerHTML = '';
+            centaurusObjects.filter(obj => obj.type !== 'Total').forEach(obj => {
+                const tr = document.createElement('tr');
+                let typeIcon = '';
+                if (obj.type === 'Mailbox') typeIcon = '📧';
+                else if (obj.type === 'OneDrive') typeIcon = '📁';
+                else if (obj.type === 'SharePoint') typeIcon = '🌐';
+
+                tr.innerHTML = `
+                    <td class="px-3 py-2 text-xs font-semibold" style="color: #3b82f6;">${typeIcon} ${obj.type}</td>
+                    <td class="px-3 py-2 text-xs text-center" style="color: #f0f3f6;">${obj.count || 0}</td>
+                    <td class="px-3 py-2 text-xs text-right font-semibold" style="color: #3b82f6;">${obj.sizeGB} GB</td>
+                `;
+                centaurusTable.appendChild(tr);
+            });
+
+            // Add Total row for Centaurus
+            if (centaurusTotal) {
+                const totalTr = document.createElement('tr');
+                totalTr.style.borderTop = '2px solid #3b82f6';
+                totalTr.style.background = 'rgba(59, 130, 246, 0.1)';
+                totalTr.innerHTML = `
+                    <td class="px-3 py-2 text-xs font-bold" style="color: #3b82f6;">📊 TOTAL</td>
+                    <td class="px-3 py-2 text-xs text-center font-bold" style="color: #f0f3f6;">${centaurusTotal.count}</td>
+                    <td class="px-3 py-2 text-xs text-right font-bold" style="color: #3b82f6;">${centaurusTotal.sizeGB} GB</td>
+                `;
+                centaurusTable.appendChild(totalTr);
+            }
+
+            // Update Copperwood section
+            const copperwoodUsersElem = document.getElementById('copperwoodUsers');
+            const copperwoodCapacityElem = document.getElementById('copperwoodCapacity');
+            const copperwoodProtectedElem = document.getElementById('copperwoodProtected');
+            const copperwoodTable = document.getElementById('copperwoodObjectsTable');
+
+            const copperwoodTotal = copperwoodObjects.find(obj => obj.type === 'Total');
+            if (copperwoodTotal) {
+                copperwoodUsersElem.textContent = copperwoodTotal.count || 0;
+                copperwoodCapacityElem.textContent = `${copperwoodTotal.sizeGB} GB`;
+                copperwoodProtectedElem.textContent = copperwoodTotal.count || 0;
+            }
+
+            copperwoodTable.innerHTML = '';
+            copperwoodObjects.filter(obj => obj.type !== 'Total').forEach(obj => {
+                const tr = document.createElement('tr');
+                let typeIcon = '';
+                if (obj.type === 'Mailbox') typeIcon = '📧';
+                else if (obj.type === 'OneDrive') typeIcon = '📁';
+                else if (obj.type === 'SharePoint') typeIcon = '🌐';
+
+                tr.innerHTML = `
+                    <td class="px-3 py-2 text-xs font-semibold" style="color: #f59e0b;">${typeIcon} ${obj.type}</td>
+                    <td class="px-3 py-2 text-xs text-center" style="color: #f0f3f6;">${obj.count || 0}</td>
+                    <td class="px-3 py-2 text-xs text-right font-semibold" style="color: #f59e0b;">${obj.sizeGB} GB</td>
+                `;
+                copperwoodTable.appendChild(tr);
+            });
+
+            // Add Total row for Copperwood
+            if (copperwoodTotal) {
+                const totalTr = document.createElement('tr');
+                totalTr.style.borderTop = '2px solid #f59e0b';
+                totalTr.style.background = 'rgba(245, 158, 11, 0.1)';
+                totalTr.innerHTML = `
+                    <td class="px-3 py-2 text-xs font-bold" style="color: #f59e0b;">📊 TOTAL</td>
+                    <td class="px-3 py-2 text-xs text-center font-bold" style="color: #f0f3f6;">${copperwoodTotal.count}</td>
+                    <td class="px-3 py-2 text-xs text-right font-bold" style="color: #f59e0b;">${copperwoodTotal.sizeGB} GB</td>
+                `;
+                copperwoodTable.appendChild(totalTr);
+            }
+
+            // Update failures table with tenant column
+            failuresTable.innerHTML = '';
+            if (failures.failures && failures.failures.length > 0) {
+                failures.failures.forEach(failure => {
+                    const tr = document.createElement('tr');
+                    const timeStr = new Date(failure.startTime).toLocaleDateString() + ' ' + new Date(failure.startTime).toLocaleTimeString();
+
+                    // Determine tenant color
+                    let tenantDisplay = failure.tenant || 'Unknown';
+                    let tenantColor = '#ffffff';
+                    if (failure.tenant === 'centcap.net') {
+                        tenantDisplay = 'Centaurus';
+                        tenantColor = '#3b82f6';
+                    } else if (failure.tenant === 'ceflp.com') {
+                        tenantDisplay = 'Copperwood';
+                        tenantColor = '#f59e0b';
+                    }
+
+                    tr.innerHTML = `
+                        <td class="px-3 py-2 text-xs font-semibold" style="color: ${tenantColor};">${tenantDisplay}</td>
+                        <td class="px-3 py-2 text-xs font-semibold">${failure.protectionGroupName}</td>
+                        <td class="px-3 py-2 text-xs" style="color: #888888;">${timeStr}</td>
+                        <td class="px-3 py-2 text-xs text-center" style="color: #ef4444; font-weight: 700;">${failure.objectsFailedCount || 0}</td>
+                    `;
+                    failuresTable.appendChild(tr);
+                });
+            } else {
+                failuresTable.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-xs" style="color: #22c55e;">✓ No recent failures</td></tr>';
+            }
+        }
+
+        function updateSystemAnalysis(data) {
+            const statsElem = document.getElementById('systemAnalysisStats');
+            const unprotectedTable = document.getElementById('unprotectedTable');
+            const duplicatesTable = document.getElementById('duplicatesTable');
+
+            unprotectedTable.innerHTML = '';
+            duplicatesTable.innerHTML = '';
+
+            const unprotected = data.unprotectedResources || [];
+            const duplicates = data.duplicateBackups || [];
+
+            // Update stats
+            const totalIssues = data.unprotectedCount + data.duplicateCount;
+            if (totalIssues === 0) {
+                statsElem.innerHTML = '<strong style="color: #51cf66;">✓ No issues detected</strong> - All resources protected, no duplicates found';
+            } else {
+                statsElem.innerHTML = `<strong style="color: #ffa500;">${data.unprotectedCount}</strong> unprotected resources | <strong style="color: #ff8c00;">${data.duplicateCount}</strong> resources backed up by multiple clusters`;
+            }
+
+            // Display unprotected resources
+            if (unprotected.length === 0) {
+                unprotectedTable.innerHTML = '<tr><td colspan="3" class="px-3 py-3 text-center text-xs text-green-600 font-semibold">✓ No unprotected resources found</td></tr>';
+            } else {
+                unprotected.forEach(resource => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'border-b border-yellow-200 hover:bg-yellow-50';
+                    const typeDisplay = resource.type.replace('k', '');
+                    tr.innerHTML = `
+                        <td class="px-3 py-2 text-xs text-gray-800 font-semibold">${resource.name}</td>
+                        <td class="px-3 py-2 text-xs text-gray-600">${typeDisplay}</td>
+                        <td class="px-3 py-2 text-xs text-gray-600">${resource.cluster}</td>
+                    `;
+                    unprotectedTable.appendChild(tr);
+                });
+            }
+
+            // Display duplicate backups
+            if (duplicates.length === 0) {
+                duplicatesTable.innerHTML = '<tr><td colspan="3" class="px-3 py-3 text-center text-xs text-green-600 font-semibold">✓ No duplicate backups found</td></tr>';
+            } else {
+                duplicates.forEach(resource => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'border-b border-orange-200 hover:bg-orange-50';
+                    const typeDisplay = (resource.type || 'Unknown').replace('k', '');
+                    const jobsList = resource.jobs ? resource.jobs.join('<br>') : 'Unknown';
+                    tr.innerHTML = `
+                        <td class="px-3 py-2 text-xs text-gray-800 font-semibold">${resource.name || 'Unknown'}</td>
+                        <td class="px-3 py-2 text-xs text-gray-600">${typeDisplay}</td>
+                        <td class="px-3 py-2 text-xs text-orange-700" style="font-size: 10px;">${jobsList}</td>
+                    `;
+                    duplicatesTable.appendChild(tr);
+                });
+            }
+        }
+
+        function updateAlerts(data) {
+            const container = document.getElementById('alertsContainer');
+            if (!container) return;
+
+            const clusters = data.clusters || [];
+            container.innerHTML = '';
+
+            clusters.forEach(cluster => {
+                const hasIssues = cluster.slaViolations > 0 || cluster.criticalAlerts > 0 || cluster.warningAlerts > 0;
+                const borderColor = hasIssues ? (cluster.slaViolations > 0 || cluster.criticalAlerts > 0 ? '#ef4444' : '#ff8800') : '#22c55e';
+
+                const card = document.createElement('div');
+                card.className = 'p-4 rounded';
+                card.style.cssText = `background: rgba(40, 40, 40, 0.8); border-left: 4px solid ${borderColor};`;
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-3">
+                        <h3 class="text-lg font-bold" style="color: ${borderColor}; font-family: 'Inter', sans-serif;">${cluster.cluster.toUpperCase()}</h3>
+                        <span class="text-xs font-bold px-2 py-1 rounded" style="background: ${cluster.grade === 'A' ? '#22c55e' : cluster.grade === 'B' ? '#f59e0b' : '#ef4444'}; color: #000;">GRADE ${cluster.grade}</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 mb-3" style="font-size: 0.85em;">
+                        <div>
+                            <div style="color: #888; font-size: 0.75em;">SLA VIOLATIONS</div>
+                            <div class="text-xl font-bold" style="color: ${cluster.slaViolations > 0 ? '#ef4444' : '#22c55e'};">${cluster.slaViolations}</div>
+                        </div>
+                        <div>
+                            <div style="color: #888; font-size: 0.75em;">SUCCESS RATE</div>
+                            <div class="text-xl font-bold" style="color: ${cluster.successRate >= 98 ? '#22c55e' : cluster.successRate >= 95 ? '#f59e0b' : '#ef4444'};">${cluster.successRate}%</div>
+                        </div>
+                        <div>
+                            <div style="color: #888; font-size: 0.75em;">CRITICAL ALERTS</div>
+                            <div class="text-xl font-bold" style="color: ${cluster.criticalAlerts > 0 ? '#ef4444' : '#888'};">${cluster.criticalAlerts}</div>
+                        </div>
+                        <div>
+                            <div style="color: #888; font-size: 0.75em;">WARNINGS</div>
+                            <div class="text-xl font-bold" style="color: ${cluster.warningAlerts > 0 ? '#ff8800' : '#888'};">${cluster.warningAlerts}</div>
+                        </div>
+                    </div>
+
+                    ${cluster.consecutiveFailures > 0 ? `
+                        <div class="mt-2 p-2 rounded" style="background: rgba(255, 0, 0, 0.2); border: 1px solid #ef4444;">
+                            <div style="color: #ef4444; font-weight: bold; font-size: 0.75em;">⚠ ${cluster.consecutiveFailures} OBJECTS WITH CONSECUTIVE FAILURES</div>
+                        </div>
+                    ` : ''}
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        function updateFailures(data) {
+            const card = document.getElementById('failuresCard');
+            const statsElem = document.getElementById('failuresStats');
+            const tbody = document.getElementById('failuresTable');
+
+            tbody.innerHTML = '';
+
+            const failures = data.failures || [];
+
+            if (failures.length === 0) {
+                // Hide the card if there are no failures
+                card.style.display = 'none';
+                return;
+            }
+
+            // Show the card
+            card.style.display = 'block';
+
+            // Count failures by age
+            const last24hr = failures.filter(f => f.hoursAgo <= 24).length;
+            const last7days = failures.length;
+
+            statsElem.innerHTML = `<strong style="color: #ff3333;">${last24hr}</strong> failures in last 24 hours | <strong>${last7days}</strong> total in last 7 days`;
+
+            // Display failures
+            failures.forEach(failure => {
+                const is24hr = failure.hoursAgo <= 24;
+                const rowClass = is24hr ? 'bg-red-50 font-bold' : '';
+                const timeColor = is24hr ? 'text-red-700 font-bold' : 'text-gray-700';
+
+                const timeStr = failure.hoursAgo < 1 ?
+                    `<span class="${timeColor}">⚠ ${Math.round(failure.hoursAgo * 60)}m ago</span>` :
+                    failure.hoursAgo < 24 ?
+                    `<span class="${timeColor}">⚠ ${failure.hoursAgo}h ago</span>` :
+                    `${Math.round(failure.hoursAgo / 24)}d ago`;
+
+                const tr = document.createElement('tr');
+                tr.className = `border-b border-gray-200 ${rowClass}`;
+                tr.innerHTML = `
+                    <td class="px-3 py-2 text-xs">${timeStr}</td>
+                    <td class="px-3 py-2 text-xs text-gray-800">${failure.jobName}</td>
+                    <td class="px-3 py-2 text-xs text-gray-700">${failure.objectName}</td>
+                    <td class="px-3 py-2 text-xs text-gray-600">${failure.cluster}</td>
+                    <td class="px-3 py-2 text-xs text-red-600">${failure.error}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateClustersGrid(capacityData, alertsData) {
+            const grid = document.getElementById('clustersGrid');
+            grid.innerHTML = '';
+
+            // Create a map of alerts by cluster name
+            const alertsMap = {};
+            (alertsData?.clusters || []).forEach(alert => {
+                alertsMap[alert.cluster] = alert;
+            });
+
+            // ========== UPDATE HERO METRIC ==========
+            const heroStatus = document.getElementById('heroStatus');
+            const heroSubtext = document.getElementById('heroSubtext');
+
+            if (!capacityData?.clusters?.length) {
+                // No data state
+                heroStatus.textContent = '—';
+                heroStatus.style.color = '#6b7280';
+                heroSubtext.textContent = 'No cluster data available';
+                grid.innerHTML = `
+                    <div class="text-center p-6" style="background: #1c2128; border-radius: 8px; border: 1px dashed #374151; grid-column: 1 / -1;">
+                        <div style="color: #6b7280; font-size: 0.875rem;">No cluster data available</div>
+                    </div>
+                `;
+                return;
+            }
+
+            // Calculate overall health based on worst cluster
+            const maxUtilization = Math.max(...capacityData.clusters.map(c => c.utilization));
+            const totalUsedTB = capacityData.clusters.reduce((sum, c) => sum + c.usedTB, 0);
+            const totalCapacityTB = capacityData.clusters.reduce((sum, c) => sum + (c.usedTB / (c.utilization / 100)), 0);
+
+            // Count clusters with issues
+            const criticalClusters = capacityData.clusters.filter(c => c.utilization > 80).length;
+            const warningClusters = capacityData.clusters.filter(c => c.utilization > 70 && c.utilization <= 80).length;
+            const healthyClusters = capacityData.clusters.filter(c => c.utilization <= 70).length;
+
+            // Determine overall status
+            let overallStatus, statusColor, statusLabel;
+            if (criticalClusters > 0) {
+                overallStatus = 'CRITICAL';
+                statusColor = '#ef4444';
+                statusLabel = `${criticalClusters} cluster${criticalClusters > 1 ? 's' : ''} above 80%`;
+            } else if (warningClusters > 0) {
+                overallStatus = 'WARNING';
+                statusColor = '#f59e0b';
+                statusLabel = `${warningClusters} cluster${warningClusters > 1 ? 's' : ''} above 70%`;
+            } else {
+                overallStatus = 'HEALTHY';
+                statusColor = '#22c55e';
+                statusLabel = `All ${healthyClusters} clusters operating normally`;
+            }
+
+            heroStatus.textContent = overallStatus;
+            heroStatus.style.color = statusColor;
+            heroSubtext.innerHTML = `${statusLabel} • ${totalUsedTB.toFixed(1)} TB used of ${totalCapacityTB.toFixed(1)} TB total`;
+
+            capacityData.clusters.forEach(cluster => {
+                const alerts = alertsMap[cluster.name] || {};
+                const hasAlertIssues = alerts.slaViolations > 0 || alerts.criticalAlerts > 0 || alerts.warningAlerts > 0;
+
+                const riskClass = cluster.utilization > 80 ? 'status-critical' :
+                                 cluster.utilization > 70 ? 'status-warning' : 'status-healthy';
+
+                // All card borders are white
+                const borderColor = '#ffffff';
+
+                const barColor = cluster.utilization > 80 ? '#ef4444' :
+                                   cluster.utilization > 70 ? '#f59e0b' : '#22c55e';
+
+                // Status text based on utilization
+                let statusText = 'OPTIMAL';
+                let statusColor = '#22c55e';
+                let percentageColor = '#22c55e'; // Green for optimal
+                let daysColor = '#22c55e'; // Green when optimal
+
+                if (cluster.utilization > 100) {
+                    statusText = '⚠ OVER CAPACITY';
+                    statusColor = '#ef4444';
+                    percentageColor = '#ef4444';
+                    daysColor = '#ef4444';
+                } else if (cluster.utilization > 80) {
+                    statusText = 'CRITICAL';
+                    statusColor = '#ef4444';
+                    percentageColor = '#ef4444';
+                    daysColor = '#ef4444';
+                } else if (cluster.utilization > 70) {
+                    statusText = 'MONITOR';
+                    statusColor = '#f59e0b';
+                    percentageColor = '#ef4444';
+                    daysColor = '#ef4444';
+                }
+
+                // Clean, professional cluster card design
+                const card = `
+                    <div class="card p-4" style="background: #161b22; border: 1px solid #30363d; border-radius: 8px;">
+                        <!-- Header: Cluster name -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <div style="font-size: 1.1rem; font-weight: 600; color: #f0f3f6;">${cluster.name}</div>
+                            <div style="font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; background: ${statusColor}20; color: ${statusColor}; font-weight: 500;">${statusText}</div>
+                        </div>
+
+                        <!-- Hero metric: Utilization percentage -->
+                        <div style="text-align: center; margin-bottom: 16px;">
+                            <div style="color: ${percentageColor}; font-size: 3rem; font-weight: 700; line-height: 1;">${cluster.utilization.toFixed(1)}%</div>
+                            <div style="color: #6b7280; font-size: 0.875rem; margin-top: 4px;">${cluster.usedTB.toFixed(1)} / ${(cluster.usedTB / (cluster.utilization / 100)).toFixed(1)} TB used</div>
+                        </div>
+
+                        <!-- Progress bar -->
+                        <div style="background: #21262d; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 16px;">
+                            <div style="height: 100%; width: ${Math.min(cluster.utilization, 100)}%; background: ${barColor}; border-radius: 4px;"></div>
+                        </div>
+
+                        ${alerts.slaViolations !== undefined ? `
+                        <!-- Alert metrics grid -->
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px;">
+                            <div style="background: #21262d; padding: 8px; border-radius: 6px; text-align: center;">
+                                <div style="color: ${alerts.slaViolations > 0 ? '#ef4444' : '#6b7280'}; font-size: 1.25rem; font-weight: 700;">${alerts.slaViolations || 0}</div>
+                                <div style="color: #6b7280; font-size: 0.7rem;">SLA Issues</div>
+                            </div>
+                            <div style="background: #21262d; padding: 8px; border-radius: 6px; text-align: center;">
+                                <div style="color: ${alerts.successRate >= 95 ? '#22c55e' : alerts.successRate >= 80 ? '#f59e0b' : '#ef4444'}; font-size: 1.25rem; font-weight: 700;">${alerts.successRate?.toFixed(0) || '0'}%</div>
+                                <div style="color: #6b7280; font-size: 0.7rem;">Success</div>
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
+                            <div style="text-align: center;">
+                                <div style="color: ${alerts.criticalAlerts > 0 ? '#ef4444' : '#6b7280'}; font-size: 1rem; font-weight: 600;">${alerts.criticalAlerts || 0}</div>
+                                <div style="color: #6b7280; font-size: 0.65rem;">Critical</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="color: ${alerts.warningAlerts > 0 ? '#f59e0b' : '#6b7280'}; font-size: 1rem; font-weight: 600;">${alerts.warningAlerts || 0}</div>
+                                <div style="color: #6b7280; font-size: 0.65rem;">Warning</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="color: ${alerts.grade === 'A' ? '#22c55e' : alerts.grade === 'B' ? '#3b82f6' : alerts.grade === 'C' ? '#f59e0b' : '#ef4444'}; font-size: 1rem; font-weight: 600;">${alerts.grade || '—'}</div>
+                                <div style="color: #6b7280; font-size: 0.65rem;">Grade</div>
+                            </div>
+                        </div>
+                        ${alerts.consecutiveFailures > 0 ? `
+                        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; border-radius: 4px; padding: 6px; text-align: center;">
+                            <span style="color: #ef4444; font-size: 0.75rem; font-weight: 600;">${alerts.consecutiveFailures} consecutive failures</span>
+                        </div>
+                        ` : ''}
+                        ` : ''}
+
+                        <!-- Days to 80% -->
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid #30363d;">
+                            <span style="color: #6b7280; font-size: 0.8rem;">Days to 80%</span>
+                            <span style="color: ${cluster.daysTo80 ? daysColor : statusColor}; font-weight: 600; font-size: 0.8rem;">${cluster.daysTo80 || statusText}</span>
+                        </div>
+                    </div>
+                `;
+                grid.innerHTML += card;
+            });
+        }
+
+        function updateCapacityChart(data) {
+            const chartElement = document.getElementById('capacityChart');
+            if (!chartElement) return; // Element doesn't exist
+            const ctx = chartElement.getContext('2d');
+
+            // Prepare chart data from trends
+            const chartData = {
+                labels: [],
+                datasets: []
+            };
+
+            // Group by cluster
+            const clusterData = {};
+            data.clusters.forEach(clusterItem => {
+                const clusterName = clusterItem.cluster;
+                if (!clusterData[clusterName]) {
+                    clusterData[clusterName] = [];
+                }
+                (clusterItem.trends || []).forEach(point => {
+                    if (!chartData.labels.includes(point.date)) {
+                        chartData.labels.push(point.date);
+                    }
+                    clusterData[clusterName].push({
+                        date: point.date,
+                        usedTB: point.usedTB
+                    });
+                });
+            });
+
+            // Sort labels chronologically
+            chartData.labels.sort();
+
+            // Create dataset per cluster
+            const colors = ['#3b82f6', '#ff00ff', '#00ff00', '#ffff00'];
+            let colorIndex = 0;
+
+            Object.keys(clusterData).forEach(clusterName => {
+                const color = colors[colorIndex % colors.length];
+                chartData.datasets.push({
+                    label: clusterName,
+                    data: chartData.labels.map(date => {
+                        const point = clusterData[clusterName].find(p => p.date === date);
+                        return point ? point.usedTB : null;
+                    }),
+                    borderColor: color,
+                    backgroundColor: color + '30',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 5,
+                    pointHoverRadius: 8,
+                    pointBackgroundColor: color,
+                    pointBorderColor: '#0a0e27',
+                    pointBorderWidth: 2
+                });
+                colorIndex++;
+            });
+
+            // Destroy existing chart if it exists
+            if (capacityChart) {
+                capacityChart.destroy();
+            }
+
+            // Create new chart
+            capacityChart = new Chart(ctx, {
+                type: 'line',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: '#3b82f6',
+                                font: {
+                                    family: 'Inter',
+                                    size: 12,
+                                    weight: 'bold'
+                                },
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(10, 14, 39, 0.95)',
+                            borderColor: '#3b82f6',
+                            borderWidth: 2,
+                            titleColor: '#3b82f6',
+                            bodyColor: '#3b82f6',
+                            titleFont: {
+                                family: 'Inter',
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                family: 'Share Tech Mono',
+                                size: 12
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            grid: {
+                                color: 'rgba(0, 255, 255, 0.1)',
+                                borderColor: '#3b82f6'
+                            },
+                            ticks: {
+                                color: '#3b82f6',
+                                font: {
+                                    family: 'Share Tech Mono',
+                                    size: 10
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Date',
+                                color: '#3b82f6',
+                                font: {
+                                    family: 'Inter',
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        y: {
+                            display: true,
+                            min: 0,
+                            max: 60,
+                            grid: {
+                                color: 'rgba(0, 255, 255, 0.1)',
+                                borderColor: '#3b82f6'
+                            },
+                            ticks: {
+                                color: '#3b82f6',
+                                font: {
+                                    family: 'Share Tech Mono',
+                                    size: 10
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'CAPACITY (TB)',
+                                color: '#3b82f6',
+                                font: {
+                                    family: 'Inter',
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateMergedGrowthInsights(topGrowingData, sqlGrowersData) {
+            const statsElem = document.getElementById('growthInsightsStats');
+            const table24hr = document.getElementById('growth24hrTable');
+            const table7day = document.getElementById('growth7dayTable');
+            const table30day = document.getElementById('growth30dayTable');
+
+            // Clear tables
+            table24hr.innerHTML = '';
+            table7day.innerHTML = '';
+            table30day.innerHTML = '';
+
+            // Helper function to format and populate a table with merged data
+            const populateTable = (tbody, generalData, sqlData, topN = 5) => {
+                const merged = [];
+
+                // Add general resources
+                if (generalData && generalData.topGrowing) {
+                    generalData.topGrowing.forEach(obj => {
+                        merged.push({
+                            name: obj.name,
+                            type: 'Resource',
+                            cluster: obj.cluster,
+                            growthGB: parseFloat(obj.dailyGrowth) || 0,
+                            sizeGB: parseFloat(obj.size) || 0
+                        });
+                    });
+                }
+
+                // Add SQL databases
+                if (sqlData && sqlData.length > 0) {
+                    sqlData.forEach(db => {
+                        merged.push({
+                            name: db.database.split('/')[1] || db.database,
+                            type: 'SQL DB',
+                            cluster: db.cluster,
+                            growthGB: db.growthGB,
+                            sizeGB: db.currentSizeGB
+                        });
+                    });
+                }
+
+                // Sort by growth descending and take top N
+                merged.sort((a, b) => b.growthGB - a.growthGB);
+                const topItems = merged.slice(0, topN);
+
+                if (topItems.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3" class="px-2 py-2 text-center text-xs text-gray-500">No growth detected</td></tr>';
+                    return;
+                }
+
+                topItems.forEach(item => {
+                    const growthFormatted = item.growthGB >= 1 ? `${item.growthGB.toFixed(1)} GB` : `${(item.growthGB * 1024).toFixed(0)} MB`;
+                    const sizeFormatted = item.sizeGB >= 1000 ? `${(item.sizeGB / 1024).toFixed(1)} TB` : `${item.sizeGB.toFixed(1)} GB`;
+
+                    const typeColor = item.type === 'SQL DB' ? '#00d9ff' : '#888';
+
+                    const tr = document.createElement('tr');
+                    tr.className = 'border-b border-gray-200 hover:bg-opacity-5 hover:bg-cyan-500';
+                    tr.innerHTML = `
+                        <td class="px-2 py-2 text-xs text-gray-800">
+                            <div class="font-semibold">${item.name}</div>
+                            <div class="text-xxs" style="color: ${typeColor};">${item.type} • ${item.cluster}</div>
+                        </td>
+                        <td class="px-2 py-2 text-xs text-right font-bold text-red-600">+${growthFormatted}</td>
+                        <td class="px-2 py-2 text-xs text-right text-gray-600">${sizeFormatted}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            };
+
+            // Populate all three tables
+            populateTable(table24hr, topGrowingData.data1day, sqlGrowersData.top1day);
+            populateTable(table7day, topGrowingData.data7day, sqlGrowersData.top7day);
+            populateTable(table30day, topGrowingData.data30day, sqlGrowersData.top30day);
+
+            // Update stats
+            const totalResources = (topGrowingData.data7day?.topGrowing?.length || 0);
+            const totalSQL = sqlGrowersData.totalDatabases || 0;
+            const activeResources7 = topGrowingData.data7day?.topGrowing?.length || 0;
+            const activeResources30 = topGrowingData.data30day?.topGrowing?.length || 0;
+
+            statsElem.innerHTML = `<strong>${totalResources}</strong> resources + <strong>${totalSQL}</strong> SQL databases monitored | Growth detected: <strong>${activeResources7}</strong> (7d) / <strong>${activeResources30}</strong> (30d)`;
+        }
+
+        function updateTopGrowingTable(data1day, data7day, data30day) {
+            const tbody = document.getElementById('topGrowingTable');
+            if (!tbody) return; // Element doesn't exist
+            tbody.innerHTML = '';
+
+            // Use 7-day data as the primary list
+            const topGrowing = data7day.topGrowing || [];
+
+            if (topGrowing.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-3 text-center text-gray-500">No growing resources found</td></tr>';
+                return;
+            }
+
+            // Create maps for quick lookup
+            const day1Map = new Map((data1day.topGrowing || []).map(obj => [obj.name + obj.cluster, obj]));
+            const day30Map = new Map((data30day.topGrowing || []).map(obj => [obj.name + obj.cluster, obj]));
+
+            topGrowing.forEach((obj, index) => {
+                const key = obj.name + obj.cluster;
+                const obj30day = day30Map.get(key);
+
+                // Parse daily growth rates (backend returns daily average for each period)
+                const dailyGrowth7day = parseFloat(obj.dailyGrowth);
+                const dailyGrowth30day = obj30day ? parseFloat(obj30day.dailyGrowth) : 0;
+
+                // Calculate total growth over each period
+                const growthDaily = dailyGrowth7day;       // Daily rate from 7-day data
+                const growth7day = dailyGrowth7day * 7;    // 7 day total
+                const growth30day = dailyGrowth30day * 30; // 30 day total
+
+                // Parse current size
+                const currentSizeGB = parseFloat(obj.size) || 0;
+
+                const row = `
+                    <tr class="border-b border-gray-200 hover:bg-opacity-5 hover:bg-cyan-500">
+                        <td class="px-4 py-3 text-sm font-bold text-gray-700">#${index + 1}</td>
+                        <td class="px-4 py-3 text-sm text-gray-800">${obj.name}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600">${obj.type}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600">${obj.cluster}</td>
+                        <td class="px-4 py-3 text-sm text-right font-semibold text-blue-600">${formatStorageSize(growthDaily)}</td>
+                        <td class="px-4 py-3 text-sm text-right font-semibold text-blue-600">${formatStorageSize(growth7day)}</td>
+                        <td class="px-4 py-3 text-sm text-right font-semibold text-blue-600">${growth30day > 0 ? formatStorageSize(growth30day) : 'N/A'}</td>
+                        <td class="px-4 py-3 text-sm text-right text-gray-700">${formatStorageSize(currentSizeGB)}</td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+
+        async function toggleJobObjects(jobId, clusterName, rowElement) {
+            const detailsRowId = `details-${clusterName}-${jobId}`;
+            const existingDetailsRow = document.getElementById(detailsRowId);
+
+            // If details are already shown, hide them
+            if (existingDetailsRow) {
+                existingDetailsRow.remove();
+                rowElement.classList.remove('expanded');
+                return;
+            }
+
+            // Show loading state
+            rowElement.classList.add('expanded');
+            const loadingRow = document.createElement('tr');
+            loadingRow.id = detailsRowId;
+            loadingRow.className = 'bg-gray-100';
+            loadingRow.innerHTML = `
+                <td colspan="7" class="px-4 py-3 text-sm text-gray-600">
+                    <div class="ml-8">⏳ Loading objects...</div>
+                </td>
+            `;
+            rowElement.after(loadingRow);
+
+            try {
+                // Fetch job objects from API
+                const response = await fetch(`${API_ENDPOINT}/api/job-objects/${clusterName}/${jobId}?topN=10`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const data = await response.json();
+
+                // Build details HTML
+                const objects = data.objects || [];
+
+                let detailsHTML = '<div class="ml-8 my-2">';
+
+                if (objects.length === 0) {
+                    detailsHTML += '<p class="text-gray-500 text-sm">No objects found or unable to retrieve details.</p>';
+                } else {
+                    detailsHTML += `<div class="text-sm mb-2" style="color: #3b82f6;"><strong>Top ${objects.length} Objects</strong> (of ${data.totalObjects} total)</div>`;
+                    detailsHTML += '<table class="w-full border border-gray-300">';
+                    detailsHTML += `
+                        <thead class="bg-gray-200">
+                            <tr>
+                                <th class="px-3 py-2 text-left border-b" style="font-size: 14.4px !important;">Object Name</th>
+                                <th class="px-3 py-2 text-left border-b" style="font-size: 14.4px !important;">Type</th>
+                                <th class="px-3 py-2 text-right border-b" style="font-size: 14.4px !important;">Logical</th>
+                                <th class="px-3 py-2 text-right border-b" style="font-size: 14.4px !important;">Physical</th>
+                                <th class="px-3 py-2 text-left border-b" style="font-size: 14.4px !important;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                    `;
+
+                    objects.forEach((obj, idx) => {
+                        const statusClass = obj.status === 'kSuccess' ? 'status-healthy' :
+                                          obj.status === 'kWarning' ? 'status-warning' : 'status-critical';
+                        const statusText = obj.status.replace('k', '');
+
+                        // Check if this is a SQL server (name contains .com or looks like a server)
+                        const isSQLServer = obj.name.includes('.com') || obj.name.includes('.') ||
+                                           obj.type === 'kHost' || obj.type === 'kPhysical';
+                        const rowId = `obj-${clusterName}-${jobId}-${idx}`;
+                        const cursorClass = isSQLServer ? 'cursor-pointer' : '';
+                        const clickHandler = isSQLServer ? `onclick="toggleSQLDatabases('${clusterName}', ${jobId}, '${obj.name.replace(/'/g, "\\'")}', this)"` : '';
+
+                        detailsHTML += `
+                            <tr id="${rowId}" class="border-b border-gray-200 hover:bg-opacity-5 hover:bg-cyan-500 ${cursorClass}" ${clickHandler}>
+                                <td class="px-3 py-2 text-gray-800" style="font-size: 14.4px !important;">${isSQLServer ? '<span class="expand-icon">▸</span>' : ''}${obj.name}</td>
+                                <td class="px-3 py-2 text-gray-600" style="font-size: 14.4px !important;">${obj.type.replace('k', '')}</td>
+                                <td class="px-3 py-2 text-right text-gray-700" style="font-size: 14.4px !important;">${obj.logicalGB} GB</td>
+                                <td class="px-3 py-2 text-right font-semibold text-blue-600" style="font-size: 14.4px !important;">${obj.physicalGB} GB</td>
+                                <td class="px-3 py-2 ${statusClass}" style="font-size: 14.4px !important;">${statusText}</td>
+                            </tr>
+                        `;
+                    });
+
+                    detailsHTML += '</tbody></table>';
+                }
+                detailsHTML += '</div>';
+
+                // Update the details row with actual data
+                loadingRow.innerHTML = `<td colspan="7" class="px-4 py-2">${detailsHTML}</td>`;
+
+            } catch (error) {
+                console.error('Error fetching job objects:', error);
+                loadingRow.innerHTML = `
+                    <td colspan="7" class="px-4 py-3 text-sm text-red-600">
+                        <div class="ml-8">❌ Error loading objects: ${error.message}</div>
+                    </td>
+                `;
+            }
+        }
+
+        async function toggleSQLDatabases(clusterName, jobId, serverName, rowElement) {
+            const dbRowId = `databases-${clusterName}-${jobId}-${serverName.replace(/\./g, '-')}`;
+            const existingDbRow = document.getElementById(dbRowId);
+
+            // Toggle icon
+            const icon = rowElement.querySelector('.expand-icon');
+
+            // If databases are already shown, hide them
+            if (existingDbRow) {
+                existingDbRow.remove();
+                if (icon) icon.textContent = '▸';
+                rowElement.classList.remove('expanded');
+                return;
+            }
+
+            // Show loading state
+            if (icon) icon.textContent = '▾';
+            rowElement.classList.add('expanded');
+
+            const loadingRow = document.createElement('tr');
+            loadingRow.id = dbRowId;
+            loadingRow.style.background = 'rgba(0, 255, 255, 0.05)';
+            loadingRow.innerHTML = `
+                <td colspan="5" class="px-3 py-2 text-sm text-gray-600">
+                    <div class="ml-12">⏳ Loading databases...</div>
+                </td>
+            `;
+            rowElement.after(loadingRow);
+
+            try {
+                // Fetch SQL databases from API
+                const response = await fetch(`${API_ENDPOINT}/api/sql-databases/${clusterName}/${jobId}/${encodeURIComponent(serverName)}?topN=20`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const data = await response.json();
+
+                // Build databases HTML
+                const databases = data.databases || [];
+
+                let dbHTML = '<div class="ml-12 my-2">';
+
+                if (databases.length === 0) {
+                    dbHTML += '<p class="text-gray-500 text-sm">No databases found.</p>';
+                } else {
+                    dbHTML += `<div class="text-xs mb-2" style="color: #3b82f6;"><strong>${databases.length} Database(s)</strong> on ${serverName}</div>`;
+                    dbHTML += '<table class="w-full border border-gray-300 db-details-table" style="font-size: 14.4px !important;">';
+                    dbHTML += `
+                        <thead style="background: rgba(0, 255, 255, 0.15); font-size: 14.4px !important;">
+                            <tr>
+                                <th class="px-2 py-1 text-left border-b" style="font-size: 14.4px !important;">Database Name</th>
+                                <th class="px-2 py-1 text-left border-b" style="font-size: 14.4px !important;">Instance</th>
+                                <th class="px-2 py-1 text-right border-b" style="font-size: 14.4px !important;">Total Size</th>
+                                <th class="px-2 py-1 text-right border-b" style="font-size: 14.4px !important;">24hr Δ</th>
+                                <th class="px-2 py-1 text-right border-b" style="font-size: 14.4px !important;">7-day Δ</th>
+                                <th class="px-2 py-1 text-right border-b" style="font-size: 14.4px !important;">30-day Δ</th>
+                                <th class="px-2 py-1 text-left border-b" style="font-size: 14.4px !important;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody style="font-size: 14.4px !important;">
+                    `;
+
+                    databases.forEach(db => {
+                        const statusClass = db.status === 'kSuccess' ? 'status-healthy' :
+                                          db.status === 'kWarning' ? 'status-warning' : 'status-critical';
+                        const statusText = db.status.replace('k', '');
+
+                        // Format sizes
+                        const totalSize = db.logicalGB != null ? formatStorageSize(db.logicalGB) : 'N/A';
+
+                        // Format growth deltas with +/- signs and colors
+                        const formatGrowth = (growthGB) => {
+                            if (growthGB == null) return '<span style="color: #888;">-</span>';
+                            if (Math.abs(growthGB) < 0.01) {
+                                return '<span style="color: #888;">~0</span>';
+                            }
+                            const formatted = formatStorageSize(Math.abs(growthGB));
+                            if (growthGB > 0) {
+                                return '<span style="color: #51cf66;">+' + formatted + '</span>';
+                            } else {
+                                return '<span style="color: #ef4444;">-' + formatted + '</span>';
+                            }
+                        };
+
+                        const growth1day = formatGrowth(db.growth1day);
+                        const growth7day = formatGrowth(db.growth7day);
+                        const growth30day = formatGrowth(db.growth30day);
+
+                        dbHTML += `
+                            <tr class="border-b border-gray-200 hover:bg-opacity-5 hover:bg-cyan-500">
+                                <td class="px-2 py-1 text-gray-800" style="font-size: 14.4px !important;">${db.name}</td>
+                                <td class="px-2 py-1 text-gray-600" style="font-size: 14.4px !important;">${db.instance}</td>
+                                <td class="px-2 py-1 text-right text-gray-800 font-semibold" style="font-size: 14.4px !important;">${totalSize}</td>
+                                <td class="px-2 py-1 text-right" style="font-size: 14.4px !important;">${growth1day}</td>
+                                <td class="px-2 py-1 text-right" style="font-size: 14.4px !important;">${growth7day}</td>
+                                <td class="px-2 py-1 text-right" style="font-size: 14.4px !important;">${growth30day}</td>
+                                <td class="px-2 py-1 ${statusClass}" style="font-size: 14.4px !important;">${statusText}</td>
+                            </tr>
+                        `;
+                    });
+
+                    dbHTML += '</tbody></table>';
+                }
+                dbHTML += '</div>';
+
+                // Update the row with actual data
+                loadingRow.innerHTML = `<td colspan="5" class="px-3 py-1">${dbHTML}</td>`;
+
+            } catch (error) {
+                console.error('Error fetching SQL databases:', error);
+                loadingRow.innerHTML = `
+                    <td colspan="5" class="px-3 py-2 text-sm text-red-600">
+                        <div class="ml-12">❌ Error loading databases: ${error.message}</div>
+                    </td>
+                `;
+                if (icon) icon.textContent = '▸';
+            }
+        }
+
+        function updateConsumersTable(data) {
+            const tbody = document.getElementById('consumersTable');
+            const statsElem = document.getElementById('consumersStats');
+            tbody.innerHTML = '';
+
+            const topConsumers = data.topConsumers || [];
+
+            if (topConsumers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-3 text-center text-gray-500">No consumer data available</td></tr>';
+                statsElem.textContent = 'NO DATA AVAILABLE';
+                return;
+            }
+
+            // Update stats summary
+            const summary = data.summary;
+            statsElem.innerHTML = `TOTAL: <strong>${summary.totalStorageConsumedTB} TB</strong> physical / <strong>${summary.totalLogicalTB} TB</strong> logical across <strong>${summary.totalJobs}</strong> jobs (<strong>${summary.overallDedupRatio}x</strong> dedup)`;
+
+            // Populate table
+            topConsumers.forEach((consumer, index) => {
+                const dedupBadge = consumer.dedupRatio >= 20 ? 'status-healthy' :
+                                  consumer.dedupRatio >= 10 ? 'status-warning' : 'status-critical';
+
+                // Color code the type badge
+                const typeColorMap = {
+                    'Virtual Server': 'background: rgba(0, 180, 255, 0.15); color: #00b4ff;',
+                    'Physical Server': 'background: rgba(255, 136, 0, 0.15); color: #ff8800;',
+                    'SQL Server': 'background: rgba(34, 197, 94, 0.15); color: #22c55e;',
+                    'Exchange': 'background: rgba(255, 0, 136, 0.15); color: #ff0088;',
+                    'Linux': 'background: rgba(255, 200, 0, 0.15); color: #ffc800;',
+                    'Windows': 'background: rgba(0, 170, 255, 0.15); color: #00aaff;',
+                    'Physical Files': 'background: rgba(255, 136, 0, 0.15); color: #ff8800;'
+                };
+                const typeStyle = typeColorMap[consumer.type] || 'background: rgba(128, 128, 128, 0.15); color: #888;';
+
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-gray-200 hover:bg-opacity-5 hover:bg-cyan-500 cursor-pointer';
+                tr.setAttribute('data-job-id', consumer.id);
+                tr.setAttribute('data-cluster', consumer.clusterName);
+                tr.style.transition = 'background-color 0.2s';
+
+                tr.innerHTML = `
+                    <td class="px-4 py-3 text-sm font-bold text-gray-700">
+                        <span class="expand-icon">▸</span> #${index + 1}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-800"><strong>${consumer.name}</strong></td>
+                    <td class="px-4 py-3 text-sm"><span style="${typeStyle} padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 600;">${consumer.type}</span></td>
+                    <td class="px-4 py-3 text-sm text-gray-600">${consumer.clusterName}</td>
+                    <td class="px-4 py-3 text-sm text-right font-semibold text-blue-600">${consumer.storageConsumedTB} TB</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-700">${consumer.logicalSizeTB} TB</td>
+                    <td class="px-4 py-3 text-sm text-right font-semibold ${dedupBadge}">${consumer.dedupRatio}x</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-600">${consumer.numFiles.toLocaleString()}</td>
+                `;
+
+                // Add click handler
+                tr.addEventListener('click', function() {
+                    const jobId = this.getAttribute('data-job-id');
+                    const cluster = this.getAttribute('data-cluster');
+                    const icon = this.querySelector('.expand-icon');
+
+                    if (this.classList.contains('expanded')) {
+                        icon.textContent = '▸';
+                    } else {
+                        icon.textContent = '▾';
+                    }
+
+                    toggleJobObjects(jobId, cluster, this);
+                });
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateSQLInsights(data) {
+            const statsElem = document.getElementById('sqlInsightsStats');
+            const table24hr = document.getElementById('sql24hrTable');
+            const table7day = document.getElementById('sql7dayTable');
+            const table30day = document.getElementById('sql30dayTable');
+
+            // Clear tables (if they exist)
+            if (table24hr) table24hr.innerHTML = '';
+            if (table7day) table7day.innerHTML = '';
+            if (table30day) table30day.innerHTML = '';
+
+            // Update stats
+            const total = data.totalDatabases || 0;
+            const count24 = data.top1day?.length || 0;
+            const count7 = data.top7day?.length || 0;
+            const count30 = data.top30day?.length || 0;
+            statsElem.innerHTML = `<strong>${total}</strong> databases tracked | Active growers: <strong>${count24}</strong> (24h) / <strong>${count7}</strong> (7d) / <strong>${count30}</strong> (30d)`;
+
+            // Helper function to populate a table
+            const populateTable = (tbody, databases) => {
+                if (!tbody) return; // Element doesn't exist
+                if (!databases || databases.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3" class="px-2 py-2 text-center text-xs text-gray-500">No growth detected</td></tr>';
+                    return;
+                }
+
+                databases.forEach(db => {
+                    const growthFormatted = db.growthGB >= 1 ? `${db.growthGB.toFixed(1)} GB` : `${(db.growthGB * 1024).toFixed(0)} MB`;
+                    const sizeFormatted = db.currentSizeGB >= 1000 ? `${(db.currentSizeGB / 1024).toFixed(1)} TB` : `${db.currentSizeGB.toFixed(1)} GB`;
+
+                    const tr = document.createElement('tr');
+                    tr.className = 'border-b border-gray-200 hover:bg-opacity-5 hover:bg-cyan-500';
+                    tr.innerHTML = `
+                        <td class="px-2 py-2 text-xs text-gray-800">
+                            <div class="font-semibold">${db.database.split('/')[1] || db.database}</div>
+                            <div class="text-gray-500 text-xxs">${db.cluster}</div>
+                        </td>
+                        <td class="px-2 py-2 text-xs text-right font-bold text-red-600">+${growthFormatted}</td>
+                        <td class="px-2 py-2 text-xs text-right text-gray-600">${sizeFormatted}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            };
+
+            // Populate all three tables
+            populateTable(table24hr, data.top1day);
+            populateTable(table7day, data.top7day);
+            populateTable(table30day, data.top30day);
+        }
+
+        // Helper function: Format size intelligently (TB if >= 1000 GB, otherwise GB)
+        function formatSize(gb) {
+            if (gb >= 1000) {
+                return `${(gb / 1024).toFixed(2)} TB`;
+            }
+            return `${gb.toFixed(1)} GB`;
+        }
+
+        // Helper function: Format size from TB value
+        function formatSizeFromTB(tb) {
+            const gb = tb * 1024;
+            if (gb >= 1000) {
+                return `${tb.toFixed(2)} TB`;
+            }
+            return `${gb.toFixed(1)} GB`;
+        }
+
+        function updateSQLStorageAnalysis(data) {
+            const statsElem = document.getElementById('sqlStorageStats');
+            const top10Body = document.getElementById('sqlTop10Body');
+            const growersBody = document.getElementById('sqlGrowersBody');
+
+            if (!statsElem || !top10Body || !growersBody) return;
+
+            // Update stats banner
+            const summary = data.summary || { totalDatabases: 0, totalPhysicalTB: 0 };
+            statsElem.innerHTML = `
+                Tracking <strong>${summary.totalDatabases}</strong> SQL databases consuming
+                <strong>${summary.totalPhysicalTB.toFixed(2)} TB</strong> physical cluster storage
+            `;
+
+            // Update Top 10 by Physical Storage table
+            top10Body.innerHTML = '';
+            const top10 = data.top10Physical || [];
+
+            if (top10.length === 0) {
+                top10Body.innerHTML = '<tr><td colspan="6" class="text-center py-4" style="color: #666;">No SQL data available</td></tr>';
+            } else {
+                top10.forEach((db, index) => {
+                    const logicalDeltaColor = db.dailyLogicalDeltaGB > 0 ? '#51cf66' :
+                                             db.dailyLogicalDeltaGB < 0 ? '#ef4444' : '#888';
+                    const physicalDeltaColor = db.dailyPhysicalDeltaTB > 0 ? '#51cf66' :
+                                              db.dailyPhysicalDeltaTB < 0 ? '#ef4444' : '#888';
+                    const weeklyLogicalColor = db.weeklyLogicalDeltaGB > 0 ? '#51cf66' :
+                                              db.weeklyLogicalDeltaGB < 0 ? '#ef4444' : '#888';
+                    const weeklyPhysicalColor = db.weeklyPhysicalDeltaTB > 0 ? '#51cf66' :
+                                               db.weeklyPhysicalDeltaTB < 0 ? '#ef4444' : '#888';
+                    const logicalSign = db.dailyLogicalDeltaGB > 0 ? '+' : '';
+                    const physicalSign = db.dailyPhysicalDeltaTB > 0 ? '+' : '';
+                    const weeklyLogicalSign = db.weeklyLogicalDeltaGB > 0 ? '+' : '';
+                    const weeklyPhysicalSign = db.weeklyPhysicalDeltaTB > 0 ? '+' : '';
+
+                    const tr = document.createElement('tr');
+                    tr.style.cssText = 'border-bottom: 1px solid rgba(255,255,255,0.1);';
+                    tr.innerHTML = `
+                        <td class="px-1 py-1" style="color: #f0f3f6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${db.database.replace('MSSQLSERVER/', '')}</td>
+                        <td class="px-1 py-1 whitespace-nowrap" style="color: #9ca3af;">${db.cluster}</td>
+                        <td class="px-1 py-1 text-right whitespace-nowrap" style="color: #9ca3af;">${formatSize(db.logicalGB)}</td>
+                        <td class="px-1 py-1 text-right whitespace-nowrap" style="color: #22c55e; font-weight: bold;">${formatSizeFromTB(db.physicalBackupTB)}</td>
+                        <td class="px-1 py-1 text-right whitespace-nowrap" style="color: ${logicalDeltaColor}; font-weight: 600;">
+                            ${logicalSign}${formatSize(Math.abs(db.dailyLogicalDeltaGB))}
+                        </td>
+                        <td class="px-1 py-1 text-right whitespace-nowrap" style="color: ${physicalDeltaColor}; font-weight: 600;">
+                            ${physicalSign}${formatSizeFromTB(Math.abs(db.dailyPhysicalDeltaTB))}
+                        </td>
+                        <td class="px-1 py-1 text-right whitespace-nowrap" style="color: ${weeklyLogicalColor}; font-weight: 600;">
+                            ${weeklyLogicalSign}${formatSize(Math.abs(db.weeklyLogicalDeltaGB))}
+                        </td>
+                        <td class="px-1 py-1 text-right whitespace-nowrap" style="color: ${weeklyPhysicalColor}; font-weight: 600;">
+                            ${weeklyPhysicalSign}${formatSizeFromTB(Math.abs(db.weeklyPhysicalDeltaTB))}
+                        </td>
+                    `;
+                    top10Body.appendChild(tr);
+                });
+            }
+
+            // Update Top 5 Fastest Growing table
+            growersBody.innerHTML = '';
+            const topGrowers = data.topGrowers || [];
+
+            if (topGrowers.length === 0) {
+                growersBody.innerHTML = '<tr><td colspan="6" class="text-center py-4" style="color: #666;">No growth data available</td></tr>';
+            } else {
+                topGrowers.forEach((db, index) => {
+                    const tr = document.createElement('tr');
+                    tr.style.cssText = 'border-bottom: 1px solid rgba(255,255,255,0.1);';
+                    tr.innerHTML = `
+                        <td class="px-1 py-1" style="color: #f0f3f6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${db.database.replace('MSSQLSERVER/', '')}</td>
+                        <td class="px-1 py-1 whitespace-nowrap" style="color: #9ca3af;">${db.cluster}</td>
+                        <td class="px-1 py-1 text-right whitespace-nowrap" style="color: #9ca3af;">${formatSize(db.logicalGB)}</td>
+                        <td class="px-1 py-1 text-right whitespace-nowrap" style="color: #22c55e;">${formatSizeFromTB(db.physicalBackupTB)}</td>
+                        <td class="px-1 py-1 text-right whitespace-nowrap" style="color: #ffa500; font-weight: bold;">
+                            +${formatSize(db.dailyLogicalDeltaGB)}
+                        </td>
+                        <td class="px-1 py-1 text-right whitespace-nowrap" style="color: #ff4500; font-weight: bold;">
+                            +${formatSizeFromTB(db.dailyPhysicalDeltaTB)}
+                        </td>
+                        <td class="px-1 py-1 text-right whitespace-nowrap" style="color: #4a9eff; font-weight: bold;">
+                            +${formatSize(db.weeklyLogicalDeltaGB)}
+                        </td>
+                        <td class="px-1 py-1 text-right whitespace-nowrap" style="color: #4a9eff; font-weight: bold;">
+                            +${formatSizeFromTB(db.weeklyPhysicalDeltaTB)}
+                        </td>
+                    `;
+                    growersBody.appendChild(tr);
+                });
+            }
+        }
+
+        function updateExecutiveSummary(data) {
+            const elem = document.getElementById('executiveSummary');
+            if (!elem) return; // Element doesn't exist
+
+            const summary = `
+                <p class="mb-3">
+                    <strong>Overall Status:</strong>
+                    Managing <strong>${data.summary.totalClusters} clusters</strong> with
+                    <strong>${data.summary.aggregateUsedTB.toFixed(1)} TB</strong> of
+                    <strong>${data.summary.aggregateCapacityTB.toFixed(1)} TB</strong> used
+                    (<strong>${data.summary.aggregatePercentUsed.toFixed(1)}%</strong> utilization).
+                </p>
+                ${data.summary.criticalClusters > 0 ? `
+                    <p class="mb-3 text-red-600 font-semibold">
+                        ⚠️ <strong>${data.summary.criticalClusters} cluster(s)</strong> require immediate attention due to high utilization.
+                    </p>
+                ` : ''}
+                ${data.hottestCluster ? `
+                    <p class="mb-3">
+                        <strong>Hottest Cluster:</strong>
+                        ${data.hottestCluster.clusterName} at <strong>${data.hottestCluster.current.utilizationPct.toFixed(1)}%</strong>
+                        capacity${data.hottestCluster.forecast.daysTo80Percent ? `, projected to reach 80% in <strong>${data.hottestCluster.forecast.daysTo80Percent} days</strong>` : ''}.
+                    </p>
+                ` : ''}
+                <p>
+                    <strong>Environment Health:</strong>
+                    ${data.summary.criticalClusters === 0 ?
+                        '🟢 All clusters operating within normal parameters.' :
+                        '🔴 Capacity planning action required for flagged clusters.'}
+                </p>
+            `;
+
+            elem.innerHTML = summary;
+        }
+
+        function updateRecommendations(data) {
+            const list = document.getElementById('recommendationsList');
+            if (!list) return; // Element doesn't exist
+            list.innerHTML = '';
+
+            data.recommendations.forEach(rec => {
+                const li = document.createElement('li');
+                li.className = 'flex items-start space-x-3';
+                li.style.cssText = 'color: #3b82f6; padding: 8px; background: rgba(0, 255, 255, 0.05); border-left: 3px solid #ff00ff; margin-bottom: 8px;';
+                li.innerHTML = `
+                    <span style="color: #ff00ff; font-size: 1.2rem; text-shadow: 0 0 10px #ff00ff;">▸</span>
+                    <span style="font-family: Share Tech Mono; letter-spacing: 0.5px;">${rec}</span>
+                `;
+                list.appendChild(li);
+            });
+
+            if (data.recommendations.length === 0) {
+                list.innerHTML = '<li style="color: #00ff00; text-align: center; padding: 20px;">✓ ALL SYSTEMS OPTIMAL // NO ACTION REQUIRED</li>';
+            }
+        }
+
+        function calculateFutureDate(days) {
+            const date = new Date();
+            date.setDate(date.getDate() + days);
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        function scheduleAutoRefresh() {
+            // Calculate time until 2 AM
+            const now = new Date();
+            const next2AM = new Date();
+            next2AM.setHours(2, 0, 0, 0);
+
+            if (now > next2AM) {
+                // If past 2 AM today, schedule for 2 AM tomorrow
+                next2AM.setDate(next2AM.getDate() + 1);
+            }
+
+            const timeUntil2AM = next2AM - now;
+
+            console.log(`Next auto-refresh scheduled for: ${next2AM.toLocaleString()}`);
+
+            setTimeout(() => {
+                refreshDashboard();
+                // Schedule next refresh (24 hours)
+                setInterval(refreshDashboard, 24 * 60 * 60 * 1000);
+            }, timeUntil2AM);
+        }
+
+        function loadFromCache() {
+            try {
+                const cached = localStorage.getItem('dashboardData');
+                if (!cached) {
+                    document.getElementById('lastUpdate').textContent = 'No cached data available';
+                    return false;
+                }
+
+                const data = JSON.parse(cached);
+                console.log('[CACHE] Loading cached data from:', data.timestamp);
+
+                document.getElementById('lastUpdate').textContent =
+                    new Date(data.timestamp).toLocaleString() + ' (cached)';
+
+                // Render ALL cached data immediately for instant perceived load
+                if (data.capacity) {
+                    updateClustersGrid(data.capacity);
+                    updateExecutiveSummary(data.capacity);
+                    updateRecommendations(data.capacity);
+                }
+                if (data.failures) updateFailures(data.failures);
+                if (data.systemAnalysis) updateSystemAnalysis(data.systemAnalysis);
+                if (data.topGrowing && data.sqlGrowers) {
+                    updateMergedGrowthInsights(data.topGrowing, data.sqlGrowers);
+                    updateSQLInsights(data.sqlGrowers);
+                }
+                if (data.consumers) updateConsumersTable(data.consumers);
+                if (data.sqlStorage) updateSQLStorageAnalysis(data.sqlStorage);
+                if (data.m365) updateM365Dashboard(data.m365.summary, data.m365.topUsers, data.m365.failures);
+                if (data.storageHealth) updateStorageHealth(data.storageHealth);
+
+                console.log('[CACHE] ✓ All cached data rendered');
+                return true; // Successfully loaded cache
+            } catch (error) {
+                console.error('[CACHE] Error loading cache:', error);
+                document.getElementById('lastUpdate').textContent = 'Cache error';
+                return false;
+            }
+        }
+    </script>
+</body>
+</html>

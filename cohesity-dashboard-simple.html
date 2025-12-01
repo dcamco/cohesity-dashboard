@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cohesity Dashboard - Simple</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #1a1a1a;
+            color: #0f0;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #2a2a2a;
+            border: 1px solid #0f0;
+        }
+        .error { color: #f00; }
+        .success { color: #0f0; }
+        button {
+            background: #0f0;
+            color: #000;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        button:hover { background: #0c0; }
+        button:disabled { background: #555; cursor: not-allowed; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { padding: 8px; text-align: left; border: 1px solid #444; }
+        th { background: #333; color: #0f0; }
+    </style>
+</head>
+<body>
+    <h1>Cohesity Dashboard</h1>
+    <div id="status" class="section">
+        <strong>Status:</strong> <span id="statusText">Initializing...</span>
+    </div>
+    <button id="refreshBtn" onclick="loadData()">REFRESH DATA</button>
+
+    <div id="capacity" class="section">
+        <h2>Capacity Summary</h2>
+        <div id="capacityContent">Loading...</div>
+    </div>
+
+    <div id="consumers" class="section">
+        <h2>Top Storage Consumers</h2>
+        <div id="consumersContent">Loading...</div>
+    </div>
+
+    <div id="growing" class="section">
+        <h2>Top Growing Objects (7 days)</h2>
+        <div id="growingContent">Loading...</div>
+    </div>
+
+    <div id="console" class="section">
+        <h2>Console Log</h2>
+        <pre id="consoleLog"></pre>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3100/api';
+        let logMessages = [];
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logMsg = `[${timestamp}] ${message}`;
+            console.log(logMsg);
+            logMessages.push(logMsg);
+            document.getElementById('consoleLog').textContent = logMessages.join('\n');
+        }
+
+        function setStatus(message, isError = false) {
+            const statusEl = document.getElementById('statusText');
+            statusEl.textContent = message;
+            statusEl.className = isError ? 'error' : 'success';
+            log(message);
+        }
+
+        async function loadData() {
+            try {
+                const refreshBtn = document.getElementById('refreshBtn');
+                refreshBtn.disabled = true;
+                refreshBtn.textContent = 'LOADING...';
+
+                setStatus('Fetching data...');
+                log('Starting data fetch...');
+
+                // Fetch capacity data
+                log('Fetching capacity data...');
+                const capacityResponse = await fetch(`${API_BASE}/capacity`);
+                if (!capacityResponse.ok) throw new Error(`Capacity API failed: ${capacityResponse.status}`);
+                const capacityData = await capacityResponse.json();
+                log(`Capacity data received: ${capacityData.summary.totalClusters} clusters`);
+                displayCapacity(capacityData);
+
+                // Fetch consumers data
+                log('Fetching consumers data...');
+                const consumersResponse = await fetch(`${API_BASE}/consumers?limit=15`);
+                if (!consumersResponse.ok) throw new Error(`Consumers API failed: ${consumersResponse.status}`);
+                const consumersData = await consumersResponse.json();
+                log(`Consumers data received: ${consumersData.summary.totalJobs} jobs`);
+                displayConsumers(consumersData);
+
+                // Fetch growing data
+                log('Fetching top growing data...');
+                const growingResponse = await fetch(`${API_BASE}/top-growing?days=7&limit=10`);
+                if (!growingResponse.ok) throw new Error(`Growing API failed: ${growingResponse.status}`);
+                const growingData = await growingResponse.json();
+                log(`Growing data received: ${growingData.topGrowing.length} objects`);
+                displayGrowing(growingData);
+
+                setStatus(`Data loaded successfully at ${new Date().toLocaleString()}`);
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = 'REFRESH DATA';
+                log('All data loaded successfully');
+
+            } catch (error) {
+                setStatus(`ERROR: ${error.message}`, true);
+                log(`ERROR: ${error.message}`);
+                const refreshBtn = document.getElementById('refreshBtn');
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = 'REFRESH DATA';
+            }
+        }
+
+        function displayCapacity(data) {
+            const html = `
+                <p><strong>Total Clusters:</strong> ${data.summary.totalClusters}</p>
+                <p><strong>Total Capacity:</strong> ${data.summary.totalCapacityTB.toFixed(2)} TB</p>
+                <p><strong>Total Used:</strong> ${data.summary.totalUsedTB.toFixed(2)} TB</p>
+                <p><strong>Utilization:</strong> ${data.summary.currentUtilization.toFixed(1)}%</p>
+                <p><strong>Days to 80%:</strong> ${data.summary.daysTo80 || 'N/A'}</p>
+                <table>
+                    <tr>
+                        <th>Cluster</th>
+                        <th>Used (TB)</th>
+                        <th>Capacity (TB)</th>
+                        <th>Utilization</th>
+                        <th>Daily Growth</th>
+                    </tr>
+                    ${data.clusters.map(c => `
+                        <tr>
+                            <td>${c.name}</td>
+                            <td>${c.usedTB}</td>
+                            <td>${c.capacityTB}</td>
+                            <td>${c.utilization}%</td>
+                            <td>${c.dailyGrowth}</td>
+                        </tr>
+                    `).join('')}
+                </table>
+            `;
+            document.getElementById('capacityContent').innerHTML = html;
+        }
+
+        function displayConsumers(data) {
+            const html = `
+                <p><strong>Total Jobs:</strong> ${data.summary.totalJobs}</p>
+                <p><strong>Total Storage:</strong> ${data.summary.totalStorageConsumedTB.toFixed(2)} TB</p>
+                <p><strong>Dedup Ratio:</strong> ${data.summary.overallDedupRatio}x</p>
+                <table>
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Cluster</th>
+                        <th>Storage (TB)</th>
+                        <th>Logical (TB)</th>
+                        <th>Dedup</th>
+                    </tr>
+                    ${data.topConsumers.slice(0, 10).map(c => `
+                        <tr>
+                            <td>${c.name}</td>
+                            <td>${c.type}</td>
+                            <td>${c.clusterName}</td>
+                            <td>${c.storageConsumedTB.toFixed(2)}</td>
+                            <td>${c.logicalSizeTB.toFixed(2)}</td>
+                            <td>${c.dedupRatio}x</td>
+                        </tr>
+                    `).join('')}
+                </table>
+            `;
+            document.getElementById('consumersContent').innerHTML = html;
+        }
+
+        function displayGrowing(data) {
+            const html = `
+                <p><strong>Top Growing Objects:</strong> ${data.topGrowing.length}</p>
+                <table>
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Cluster</th>
+                        <th>Job</th>
+                        <th>Daily Growth</th>
+                        <th>Size</th>
+                    </tr>
+                    ${data.topGrowing.map(o => `
+                        <tr>
+                            <td>${o.name}</td>
+                            <td>${o.type}</td>
+                            <td>${o.cluster}</td>
+                            <td>${o.jobName}</td>
+                            <td>${o.dailyGrowth}</td>
+                            <td>${o.size}</td>
+                        </tr>
+                    `).join('')}
+                </table>
+            `;
+            document.getElementById('growingContent').innerHTML = html;
+        }
+
+        // Auto-load on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            log('Page loaded, starting data fetch...');
+            loadData();
+        });
+    </script>
+</body>
+</html>

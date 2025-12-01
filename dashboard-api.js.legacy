@@ -1,0 +1,406 @@
+/**
+ * Simple Express API for Cohesity Dashboard
+ * Connects to MCP server HTTP API and exposes dashboard endpoints
+ */
+
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+
+const app = express();
+const PORT = 3100;
+const MCP_HTTP_PORT = 3000;
+
+// Enable CORS for dashboard
+app.use(cors());
+app.use(express.json());
+
+// Serve static files (CSS, JS) with cache-busting headers
+app.use(express.static(__dirname, {
+    setHeaders: (res, path) => {
+        if (path.endsWith('.css') || path.endsWith('.js')) {
+            res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.set('Pragma', 'no-cache');
+            res.set('Expires', '0');
+        }
+    }
+}));
+
+/**
+ * Call MCP server HTTP API
+ */
+async function callMCPEndpoint(endpoint, method = 'GET') {
+    console.log(`[API] Calling ${method} ${endpoint}`);
+
+    try {
+        const options = {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        };
+
+        const response = await fetch(`http://localhost:${MCP_HTTP_PORT}${endpoint}`, options);
+
+        if (!response.ok) {
+            throw new Error(`MCP HTTP error: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log(`[API] ✓ ${method} ${endpoint} completed`);
+        return data;
+    } catch (error) {
+        console.error(`[API] Error calling ${method} ${endpoint}:`, error.message);
+        throw error;
+    }
+}
+
+/**
+ * API Endpoints
+ */
+
+// Health check
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Get multi-cluster capacity analysis
+app.get('/api/capacity', async (req, res) => {
+    try {
+        console.log('[API] Fetching capacity data...');
+        const data = await callMCPEndpoint('/api/dashboard/capacity');
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching capacity:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get capacity trends (30 days default)
+app.get('/api/trends', async (req, res) => {
+    try {
+        const days = parseInt(req.query.days) || 30;
+        console.log(`[API] Fetching trends data (${days} days)...`);
+        const data = await callMCPEndpoint(`/api/dashboard/trends?days=${days}`);
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching trends:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get top growing objects
+app.get('/api/top-growing', async (req, res) => {
+    try {
+        const days = parseInt(req.query.days) || 7;
+        const limit = parseInt(req.query.limit) || 10;
+        console.log(`[API] Fetching top growing objects (${days} days, limit ${limit})...`);
+        const data = await callMCPEndpoint(`/api/dashboard/top-growing?days=${days}&limit=${limit}`);
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching top growing:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get storage consumers
+app.get('/api/consumers', async (req, res) => {
+    try {
+        const maxCount = parseInt(req.query.maxCount) || 100;
+        const limit = parseInt(req.query.limit) || 20;
+        console.log(`[API] Fetching storage consumers (maxCount: ${maxCount}, limit: ${limit})...`);
+        const data = await callMCPEndpoint(`/api/dashboard/consumers?maxCount=${maxCount}&limit=${limit}`);
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching consumers:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get job objects
+app.get('/api/job-objects/:cluster/:jobId', async (req, res) => {
+    try {
+        const { cluster, jobId } = req.params;
+        const topN = parseInt(req.query.topN) || 10;
+        console.log(`[API] Fetching objects for job ${jobId} on ${cluster} (top ${topN})...`);
+        const data = await callMCPEndpoint(`/api/dashboard/job-objects/${cluster}/${jobId}?topN=${topN}`);
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching job objects:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get SQL server databases
+app.get('/api/sql-databases/:cluster/:jobId/:serverName', async (req, res) => {
+    try {
+        const { cluster, jobId, serverName } = req.params;
+        const topN = parseInt(req.query.topN) || 20;
+        console.log(`[API] Fetching databases for ${serverName} in job ${jobId} on ${cluster} (top ${topN})...`);
+        const data = await callMCPEndpoint(`/api/dashboard/sql-databases/${cluster}/${jobId}/${encodeURIComponent(serverName)}?topN=${topN}`);
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching SQL databases:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get SQL top growers
+app.get('/api/sql-top-growers', async (req, res) => {
+    try {
+        const topN = parseInt(req.query.topN) || 5;
+        console.log(`[API] Fetching SQL top growers (topN: ${topN})...`);
+        const data = await callMCPEndpoint(`/api/dashboard/sql-top-growers?topN=${topN}`);
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching SQL top growers:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get SQL storage analysis
+app.get('/api/sql-storage-analysis', async (req, res) => {
+    try {
+        console.log('[API] Fetching SQL storage analysis...');
+        const data = await callMCPEndpoint('/api/dashboard/sql-storage-analysis');
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching SQL storage analysis:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get recent failures
+app.get('/api/failures', async (req, res) => {
+    try {
+        const days = parseInt(req.query.days) || 7;
+        console.log(`[API] Fetching failures (last ${days} days)...`);
+        const data = await callMCPEndpoint(`/api/dashboard/failures?days=${days}`);
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching failures:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get system analysis
+app.get('/api/system-analysis', async (req, res) => {
+    try {
+        console.log(`[API] Fetching system analysis...`);
+        const data = await callMCPEndpoint('/api/dashboard/system-analysis');
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching system analysis:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get storage health (orphaned/deleted data)
+app.get('/api/storage-health', async (req, res) => {
+    try {
+        console.log(`[API] Fetching storage health...`);
+        const data = await callMCPEndpoint('/api/dashboard/storage-health');
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching storage health:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get storage health - dashboard path (used by inline HTML JavaScript)
+app.get('/api/dashboard/storage-health', async (req, res) => {
+    try {
+        console.log(`[API] Fetching storage health (dashboard path)...`);
+        const data = await callMCPEndpoint('/api/dashboard/storage-health');
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching storage health:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get alerts
+app.get('/api/alerts', async (req, res) => {
+    try {
+        const days = parseInt(req.query.days) || 1;
+        console.log(`[API] Fetching alerts (${days} days)...`);
+        const data = await callMCPEndpoint(`/api/dashboard/alerts?days=${days}`);
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching alerts:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get M365 summary
+app.get('/api/m365-summary', async (req, res) => {
+    try {
+        console.log(`[API] Fetching M365 summary...`);
+        const data = await callMCPEndpoint('/api/dashboard/m365-summary');
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching M365 summary:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get M365 top users
+app.get('/api/m365-top-users', async (req, res) => {
+    try {
+        const topN = parseInt(req.query.topN) || 10;
+        console.log(`[API] Fetching M365 top users (topN: ${topN})...`);
+        const data = await callMCPEndpoint(`/api/dashboard/m365-top-users?topN=${topN}`);
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching M365 top users:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get M365 failures
+app.get('/api/m365-failures', async (req, res) => {
+    try {
+        const days = parseInt(req.query.days) || 7;
+        console.log(`[API] Fetching M365 failures (${days} days)...`);
+        const data = await callMCPEndpoint(`/api/dashboard/m365-failures?days=${days}`);
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching M365 failures:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get job objects for a specific cluster
+app.get('/api/job-objects/:clusterName', async (req, res) => {
+    try {
+        const clusterName = req.params.clusterName;
+        const jobId = req.query.jobId;
+        console.log(`[API] Fetching job objects for cluster ${clusterName}, job ${jobId}...`);
+        const data = await callMCPEndpoint(`/api/dashboard/job-objects/${clusterName}?jobId=${jobId}`);
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching job objects:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get SQL databases for a specific cluster
+app.get('/api/sql-databases/:clusterName', async (req, res) => {
+    try {
+        const clusterName = req.params.clusterName;
+        console.log(`[API] Fetching SQL databases for cluster ${clusterName}...`);
+        const data = await callMCPEndpoint(`/api/dashboard/sql-databases/${clusterName}`);
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching SQL databases:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Manual cache refresh endpoint
+app.post('/api/refresh-cache', async (req, res) => {
+    try {
+        console.log('[API] Triggering manual cache refresh...');
+        const data = await callMCPEndpoint('/api/dashboard/refresh-cache', 'POST');
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error triggering cache refresh:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ==================== M365 ENDPOINTS ====================
+
+// Get M365 summary
+app.get('/api/m365-summary', async (req, res) => {
+    try {
+        console.log('[API] Fetching M365 summary...');
+        const data = await callMCPEndpoint('/api/dashboard/m365-summary');
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching M365 summary:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get M365 top users
+app.get('/api/m365-top-users', async (req, res) => {
+    try {
+        const topN = parseInt(req.query.topN) || 10;
+        console.log(`[API] Fetching M365 top users (topN: ${topN})...`);
+        const data = await callMCPEndpoint(`/api/dashboard/m365-top-users?topN=${topN}`);
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching M365 top users:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get M365 failures
+app.get('/api/m365-failures', async (req, res) => {
+    try {
+        const days = parseInt(req.query.days) || 7;
+        console.log(`[API] Fetching M365 failures (last ${days} days)...`);
+        const data = await callMCPEndpoint(`/api/dashboard/m365-failures?days=${days}`);
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching M365 failures:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get M365 objects (mailboxes/users)
+app.get('/api/m365-objects', async (req, res) => {
+    try {
+        const sourceId = req.query.sourceId;
+        if (!sourceId) {
+            return res.status(400).json({ error: 'sourceId parameter required' });
+        }
+        console.log(`[API] Fetching M365 objects for source ${sourceId}...`);
+        const data = await callMCPEndpoint(`/api/dashboard/m365-objects?sourceId=${sourceId}`);
+        res.json(data);
+    } catch (error) {
+        console.error('[API] Error fetching M365 objects:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Serve static dashboard HTML (with cache-busting headers)
+app.get('/', (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.sendFile(path.join(__dirname, 'cohesity-dashboard.html'));
+});
+
+// Start server
+app.listen(PORT, async () => {
+    console.log(`\n✅ Dashboard API server running on http://localhost:${PORT}`);
+    console.log(`📊 Dashboard: http://localhost:${PORT}`);
+    console.log(`🔧 API endpoints:`);
+    console.log(`   GET /api/capacity - Multi-cluster capacity`);
+    console.log(`   GET /api/trends?days=30 - Capacity trends`);
+    console.log(`   GET /api/top-growing?days=7&limit=10 - Top growing resources`);
+    console.log(`   GET /api/capacity/:cluster - Single cluster detail`);
+    console.log(`\n🔗 Connecting to MCP HTTP API on port ${MCP_HTTP_PORT}...`);
+
+    // Test MCP connection
+    try {
+        const healthCheck = await fetch(`http://localhost:${MCP_HTTP_PORT}/api/multi-cluster-status`);
+        if (healthCheck.ok) {
+            console.log(`✅ MCP server connection verified\n`);
+        } else {
+            console.log(`⚠️  MCP server responded with status ${healthCheck.status}\n`);
+        }
+    } catch (error) {
+        console.log(`❌ Cannot connect to MCP server on port ${MCP_HTTP_PORT}`);
+        console.log(`   Make sure the MCP server is running in Claude Desktop`);
+        console.log(`   The MCP server must be restarted to pick up the new HTTP endpoints\n`);
+    }
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+    console.log('\n⏹️  Shutting down dashboard API...');
+    process.exit(0);
+});

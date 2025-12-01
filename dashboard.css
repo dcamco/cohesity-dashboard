@@ -1,0 +1,741 @@
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;600;700&family=Michroma&family=Orbitron:wght@400;700;900&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Racing Stripe Animation */
+        .racing-stripe {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg,
+                #00e5ff 0%, #ffffff 15%, #00e5ff 30%,
+                #0099cc 45%, #00e5ff 60%, #ffffff 75%, #00e5ff 100%);
+            background-size: 200% 100%;
+            z-index: 10000;
+            animation: raceStripe 4s linear infinite;
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+        }
+
+        @keyframes raceStripe {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 200% 0%; }
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        @keyframes livePulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.9); }
+        }
+
+        @keyframes criticalPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7%; }
+        }
+
+        @keyframes shine {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(200%); }
+        }
+
+        body {
+            background: #0d0d0d;
+            background-image:
+                linear-gradient(0deg, transparent 24%, rgba(255, 0, 0, 0.05) 25%, rgba(255, 0, 0, 0.05) 26%, transparent 27%, transparent 74%, rgba(255, 0, 0, 0.05) 75%, rgba(255, 0, 0, 0.05) 76%, transparent 77%, transparent),
+                linear-gradient(90deg, transparent 24%, rgba(255, 0, 0, 0.05) 25%, rgba(255, 0, 0, 0.05) 26%, transparent 27%, transparent 74%, rgba(255, 0, 0, 0.05) 75%, rgba(255, 0, 0, 0.05) 76%, transparent 77%, transparent);
+            background-size: 50px 50px;
+            min-height: 100vh;
+            font-family: 'Rajdhani', sans-serif;
+            color: #ffffff;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(ellipse at top, rgba(229, 0, 0, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at bottom, rgba(0, 0, 0, 0.4) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .card {
+            background: linear-gradient(135deg, rgba(20, 20, 20, 0.98) 0%, rgba(30, 30, 30, 0.95) 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 100, 100, 0.3);
+            border-left: 3px solid #888;
+            border-radius: 0;
+            box-shadow:
+                0 4px 20px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            background: linear-gradient(to bottom, #00e5ff, #0099cc, #00e5ff);
+            animation: borderPulse 2.5s ease-in-out infinite;
+        }
+
+        @keyframes borderPulse {
+            0%, 100% { opacity: 0.8; transform: scaleY(1); }
+            50% { opacity: 0.4; transform: scaleY(0.95); }
+        }
+
+        .card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 150px;
+            height: 100%;
+            background: linear-gradient(135deg, transparent 0%, rgba(0, 229, 255, 0.02) 50%, transparent 100%);
+            transform: skewX(-10deg);
+            pointer-events: none;
+        }
+
+        .card:hover {
+            border-left-color: #00e5ff;
+            box-shadow:
+                0 6px 30px rgba(0, 229, 255, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .metric-card {
+        }
+
+        h1, h2, h3 {
+            font-family: 'Michroma', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #ffffff;
+            font-weight: 400;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            font-weight: 400;
+            letter-spacing: 3px;
+            background: linear-gradient(90deg, #ffffff 0%, #00e5ff 50%, #ffffff 100%);
+            background-size: 200% 100%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 6s ease-in-out infinite;
+        }
+
+        h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 400;
+            color: #ffffff;
+            letter-spacing: 3px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        h2::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 28px;
+            background: linear-gradient(to bottom, #00e5ff, #0099cc);
+            box-shadow: 0 0 8px rgba(0, 229, 255, 0.6);
+        }
+
+        .status-healthy {
+            color: #00ff88;
+            font-weight: 700;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.8), 0 0 20px rgba(0, 255, 136, 0.4);
+            letter-spacing: 1px;
+        }
+
+        .status-warning {
+            color: #ffaa00;
+            font-weight: 700;
+            text-shadow: 0 0 10px rgba(255, 170, 0, 0.8), 0 0 20px rgba(255, 170, 0, 0.4);
+            letter-spacing: 1px;
+        }
+
+        .status-critical {
+            color: #ff4444;
+            font-weight: 700;
+            text-shadow: 0 0 10px rgba(255, 68, 68, 0.8), 0 0 20px rgba(255, 68, 68, 0.4);
+            letter-spacing: 1px;
+            animation: criticalPulse 1.5s ease-in-out infinite;
+        }
+
+        button {
+            background: linear-gradient(135deg, #0099cc 0%, #006699 100%);
+            border: 2px solid #00e5ff;
+            color: #ffffff;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            padding: 12px 28px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 229, 255, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.1);
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        button:hover::before {
+            left: 100%;
+        }
+
+        button:hover {
+            background: linear-gradient(135deg, #00e5ff 0%, #0099cc 100%);
+            box-shadow: 0 6px 25px rgba(0, 229, 255, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            border-color: #00ffff;
+        }
+
+        button:active {
+            transform: translateY(0px);
+        }
+
+        table {
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+        }
+
+        thead {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%) !important;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        th {
+            font-family: 'Orbitron', sans-serif;
+            color: #ffffff !important;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 0.75rem !important;
+            font-weight: 700 !important;
+            padding: 14px 12px !important;
+            border-bottom: 2px solid #00e5ff !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            text-shadow: 0 0 6px rgba(0, 229, 255, 0.4) !important;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+        }
+
+        th:last-child {
+            border-right: none;
+        }
+
+        tbody {
+            background: rgba(15, 15, 15, 0.95);
+        }
+
+        tbody tr {
+            border-bottom: 1px solid rgba(229, 0, 0, 0.15);
+            transition: all 0.2s ease;
+        }
+
+        tbody tr:hover {
+            background: rgba(0, 229, 255, 0.08) !important;
+            box-shadow: inset 3px 0 8px rgba(0, 229, 255, 0.2);
+        }
+
+        tbody tr:nth-child(even) {
+            background: rgba(20, 20, 20, 0.5);
+        }
+
+        td {
+            color: #e0e0e0 !important;
+            font-size: 0.9rem !important;
+            padding: 12px 16px !important;
+            line-height: 1.6 !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.03);
+            font-weight: 400;
+        }
+
+        td:last-child {
+            border-right: none;
+        }
+
+        /* Preserve color coding for specific elements */
+        td .text-red-600 {
+            color: #e50000 !important;
+            font-weight: 700;
+            text-shadow: 0 0 6px rgba(229, 0, 0, 0.5);
+        }
+
+        td .text-orange-700 {
+            color: #ff9500 !important;
+            font-weight: 700;
+        }
+
+        td .text-cyan-700 {
+            color: #00e5ff !important;
+            font-weight: 700;
+        }
+
+        td .text-green-600 {
+            color: #00ff41 !important;
+            font-weight: 700;
+            text-shadow: 0 0 6px rgba(0, 255, 65, 0.5);
+        }
+
+        .text-gray-600, .text-gray-700, .text-gray-800 {
+            color: #b0b0b0 !important;
+            opacity: 1;
+            text-shadow: none;
+        }
+
+        .text-gray-500 {
+            color: #888888 !important;
+            opacity: 1;
+            text-shadow: none;
+        }
+
+        .text-blue-600 {
+            color: #00e5ff !important;
+            font-weight: 600;
+            font-size: 1.05rem;
+            text-shadow: none;
+        }
+
+        .bg-gray-100 {
+            background: rgba(229, 0, 0, 0.05) !important;
+        }
+
+        .border-gray-200 {
+            border-color: rgba(229, 0, 0, 0.2) !important;
+        }
+
+        /* Progress bar styling */
+        .bg-gray-200 {
+            background: rgba(40, 40, 40, 0.8) !important;
+            border: 1px solid rgba(229, 9, 20, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bg-cyan-500, .bg-cyan-600,
+        .bg-green-500, .bg-green-600,
+        .bg-orange-500, .bg-orange-600,
+        .bg-red-500, .bg-red-600 {
+            position: relative;
+        }
+
+        .bg-cyan-500::after, .bg-cyan-600::after,
+        .bg-green-500::after, .bg-green-600::after,
+        .bg-orange-500::after, .bg-orange-600::after,
+        .bg-red-500::after, .bg-red-600::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+            animation: shine 2s ease-in-out infinite;
+        }
+
+        .bg-cyan-500, .bg-cyan-600 {
+            background: linear-gradient(90deg, #e50000 0%, #ff3333 100%) !important;
+            box-shadow: 0 0 10px rgba(229, 9, 20, 0.5);
+        }
+
+        .bg-green-500, .bg-green-600 {
+            background: linear-gradient(90deg, #00ff41 0%, #00cc33 100%) !important;
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+        }
+
+        .bg-orange-500, .bg-orange-600 {
+            background: linear-gradient(90deg, #ff9500 0%, #ffaa00 100%) !important;
+            box-shadow: 0 0 10px rgba(255, 149, 0, 0.5);
+        }
+
+        .bg-red-500, .bg-red-600 {
+            background: linear-gradient(90deg, #e50000 0%, #cc0000 100%) !important;
+            box-shadow: 0 0 10px rgba(229, 0, 0, 0.6);
+        }
+
+        .status-healthy, .status-warning, .status-critical {
+        }
+
+        /* Expandable row styling */
+        .cursor-pointer {
+            cursor: pointer;
+        }
+
+        .expand-icon {
+            display: inline-block;
+            transition: transform 0.2s;
+            margin-right: 4px;
+            color: #e50000;
+        }
+
+        tr.expanded .expand-icon {
+            transform: rotate(90deg);
+        }
+
+        /* Nested table styling for objects */
+        #consumersTable table {
+            margin: 0.5rem 0;
+        }
+
+        #consumersTable table th {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.5rem 0.75rem;
+            background: rgba(229, 0, 0, 0.15);
+            border: 1px solid rgba(229, 0, 0, 0.3);
+        }
+
+        #consumersTable table td {
+            font-size: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid rgba(0, 255, 255, 0.1);
+        }
+
+        /* Live Status Indicator */
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #00ff88;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+        }
+
+        .live-indicator::before {
+            content: '';
+            width: 10px;
+            height: 10px;
+            background: #00ff88;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.8);
+            animation: livePulse 1.5s ease-in-out infinite;
+        }
+
+        /* Enhanced Metric Card */
+        .metric-card {
+            padding: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateX(3px);
+            box-shadow: -3px 0 15px rgba(0, 229, 255, 0.3);
+        }
+
+        /* Enhanced metric values with Orbitron font */
+        .metric-card .text-3xl,
+        .metric-card .text-4xl,
+        .metric-card .text-5xl {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            text-shadow: 0 2px 15px rgba(0, 229, 255, 0.4);
+        }
+
+        /* ========== DENSITY OPTIMIZATIONS ========== */
+
+        /* 1. Reduce Card Padding and Margins */
+        .card {
+            padding: 14px !important;
+        }
+
+        .p-6 {
+            padding: 14px !important;
+        }
+
+        .p-4 {
+            padding: 12px !important;
+        }
+
+        .mb-6 {
+            margin-bottom: 12px !important;
+        }
+
+        .mb-4 {
+            margin-bottom: 10px !important;
+        }
+
+        .mt-2, .mt-4 {
+            margin-top: 8px !important;
+        }
+
+        /* 2. Reduce Header and Typography Sizes */
+        h1 {
+            font-size: 2rem !important;
+            margin-bottom: 8px !important;
+        }
+
+        h2 {
+            font-size: 1rem !important;
+            margin-bottom: 12px !important;
+            padding-left: 16px !important;
+        }
+
+        h2::before {
+            width: 3px !important;
+            height: 22px !important;
+        }
+
+        h3 {
+            font-size: 0.95rem !important;
+            margin-bottom: 10px !important;
+        }
+
+        .text-sm {
+            font-size: 0.8rem !important;
+        }
+
+        .text-xs {
+            font-size: 0.7rem !important;
+        }
+
+        /* 3. Compact Table Styling */
+        td {
+            padding: 6px 10px !important;
+            font-size: 0.8rem !important;
+            line-height: 1.3 !important;
+        }
+
+        th {
+            padding: 8px 10px !important;
+            font-size: 0.7rem !important;
+        }
+
+        tbody tr {
+            line-height: 1.3 !important;
+        }
+
+        #consumersTable table th {
+            font-size: 0.65rem !important;
+            padding: 6px 8px !important;
+        }
+
+        #consumersTable table td {
+            font-size: 0.65rem !important;
+            padding: 6px 8px !important;
+        }
+
+        /* 4. Optimize Cluster Grid Layout */
+        /* Removed - now handled by inline styles */
+
+        .metric-card {
+            padding: 14px !important;
+        }
+
+        .metric-card .text-3xl,
+        .metric-card .text-4xl,
+        .metric-card .text-5xl {
+            font-size: 1.8rem !important;
+        }
+
+        .metric-card .space-y-2 > * + * {
+            margin-top: 6px !important;
+        }
+
+        /* 5. Reduce Grid Gaps Throughout */
+        .gap-4 {
+            gap: 10px !important;
+        }
+
+        .gap-6 {
+            gap: 12px !important;
+        }
+
+        .space-y-2 > * + * {
+            margin-top: 6px !important;
+        }
+
+        .space-y-6 > * + * {
+            margin-top: 12px !important;
+        }
+
+        /* 6. Compact M365 Section */
+        #m365Card .overflow-x-auto {
+            max-height: 200px !important;
+        }
+
+        #m365Card .border-2 {
+            padding: 12px !important;
+        }
+
+        #m365Tenants, #m365Users, #m365Capacity, #m365Failures,
+        #centaurusUsers, #centaurusCapacity, #centaurusProtected,
+        #copperwoodUsers, #copperwoodCapacity, #copperwoodProtected {
+            font-size: 1.6rem !important;
+            margin-top: 4px !important;
+        }
+
+        #m365Card .text-xl {
+            font-size: 1rem !important;
+        }
+
+        /* 7. Compact Growth Insights Tables */
+        #growth24hrTable, #growth7dayTable, #growth30dayTable,
+        #sql24hrTable, #sql7dayTable, #sql30dayTable {
+            max-height: 280px !important;
+        }
+
+        .text-lg {
+            font-size: 0.95rem !important;
+        }
+
+        .text-md {
+            font-size: 0.9rem !important;
+        }
+
+        /* 8. Compact System Analysis Section */
+        #systemAnalysisCard .overflow-x-auto {
+            max-height: 250px !important;
+        }
+
+        #systemAnalysisCard .border-2 {
+            padding: 12px !important;
+        }
+
+        /* 9. Optimize Storage Consumers Table */
+        #consumersTable {
+            font-size: 0.85rem !important;
+        }
+
+        #consumersTable .px-4 {
+            padding-left: 12px !important;
+            padding-right: 12px !important;
+        }
+
+        #consumersTable .py-3 {
+            padding-top: 8px !important;
+            padding-bottom: 8px !important;
+        }
+
+        /* 10. Compact Status Indicators */
+        .status-healthy, .status-warning, .status-critical {
+            font-size: 0.85rem !important;
+        }
+
+        /* 11. Reduce Button Sizes */
+        button {
+            padding: 10px 24px !important;
+            font-size: 0.85rem !important;
+        }
+
+        /* 12. Optimize for Wider Screens */
+        @media (min-width: 1920px) {
+            .max-w-7xl {
+                max-width: 1800px !important;
+            }
+
+            .grid-cols-1.md\\:grid-cols-4 {
+                grid-template-columns: repeat(4, 1fr) !important;
+            }
+        }
+
+        @media (min-width: 1440px) {
+            .max-w-7xl {
+                max-width: 1400px !important;
+            }
+        }
+
+        /* 13. Reduce Specific Section Padding */
+        .header {
+            padding: 20px 28px !important;
+        }
+
+        /* 14. Optimize Executive Summary and Recommendations */
+        #executiveSummary {
+            line-height: 1.5 !important;
+            font-size: 0.9rem !important;
+        }
+
+        #executiveSummary p {
+            margin-bottom: 10px !important;
+        }
+
+        #recommendationsList li {
+            padding: 6px !important;
+            margin-bottom: 6px !important;
+            font-size: 0.85rem !important;
+        }
+
+        /* 15. Reduce Vertical Rhythm */
+        .dashboard {
+            padding: 15px !important;
+        }
+
+        body.p-6 {
+            padding: 15px !important;
+        }
+
+        /* Additional compact spacing for cards */
+        .gap-3 {
+            gap: 8px !important;
+        }
+
+        /* Compact M365 tenant sections */
+        #m365Card .grid-cols-3 {
+            gap: 8px !important;
+        }
+
+        #m365Card .mb-6 {
+            margin-bottom: 10px !important;
+        }
+
+        #m365Card .mb-4 {
+            margin-bottom: 8px !important;
+        }
+
+        #m365Card .mb-3 {
+            margin-bottom: 8px !important;
+        }
+
+        /* Tighter paragraph spacing */
+        p {
+            line-height: 1.4 !important;
+        }
+
+        /* Compact list items */
+        ul, ol {
+            margin-bottom: 10px !important;
+        }
+
+        li {
+            line-height: 1.4 !important;
+        }
