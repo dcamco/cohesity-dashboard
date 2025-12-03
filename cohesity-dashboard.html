@@ -399,6 +399,42 @@
             50% { opacity: 0.6; transform: scale(0.85); }
         }
 
+        /* Refresh indicator in hero */
+        .refresh-indicator {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            margin-left: var(--space-4);
+            padding-left: var(--space-4);
+            border-left: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .refresh-countdown {
+            font-family: 'SF Mono', 'Consolas', monospace;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.7);
+            min-width: 40px;
+        }
+
+        .btn-refresh-now {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-refresh-now:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
         /* Responsive adjustments */
         @media (max-width: 900px) {
             .hero-content {
@@ -411,6 +447,11 @@
             }
             .alert-badges {
                 justify-content: center;
+            }
+            .refresh-indicator {
+                border-left: none;
+                margin-left: 0;
+                padding-left: 0;
             }
         }
 
@@ -1009,6 +1050,15 @@
                 <div class="alert-badges" id="alertBadges">
                     <!-- Populated by JS -->
                 </div>
+                <div class="refresh-indicator">
+                    <span class="refresh-countdown" id="refreshCountdown">5:00</span>
+                    <button class="btn-refresh-now" onclick="refreshDashboard(); scheduleAutoRefresh();" title="Refresh now">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6M1 20v-6h6"/>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </section>
 
@@ -1139,8 +1189,8 @@
                 </div>
             </div>
 
-            <!-- SQL Database Analysis -->
-            <div class="collapsible" id="sqlSection">
+            <!-- SQL Storage Impact -->
+            <div class="collapsible open" id="sqlSection">
                 <div class="collapsible-header" onclick="toggleCollapsible('sqlSection')">
                     <div class="collapsible-title">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1148,35 +1198,74 @@
                             <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
                             <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
                         </svg>
-                        SQL Database Analysis
-                        <span class="collapsible-badge ok" id="sqlBadge">0 DBs</span>
+                        SQL Storage Impact
+                        <span class="collapsible-badge ok" id="sqlBadge">0 Jobs</span>
                     </div>
                     <svg class="collapsible-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="6 9 12 15 18 9"/>
                     </svg>
                 </div>
                 <div class="collapsible-content">
-                    <div id="sqlSummary" style="margin-bottom: 12px; padding: 12px; background: var(--bg-card); border-radius: 6px; display: flex; gap: 24px;">
-                        <div><span class="text-muted">Total Physical:</span> <span id="sqlTotalPhysical" class="font-semibold">-</span></div>
-                        <div><span class="text-muted">Databases:</span> <span id="sqlTotalDBs" class="font-semibold">-</span></div>
-                        <div><span class="text-muted">Avg Compression:</span> <span id="sqlAvgCompression" class="font-semibold text-healthy">-</span></div>
+                    <!-- Net Storage Summary - Key Insight -->
+                    <div id="sqlNetSummary" class="grid-4 mb-4">
+                        <div style="background: var(--bg-card); padding: var(--space-4); border-radius: 6px; text-align: center;">
+                            <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px;">Today's Net Growth</div>
+                            <div id="sqlNetToday" style="font-size: 1.5rem; font-weight: 700; font-family: var(--font-mono);">-</div>
+                            <div style="color: var(--text-muted); font-size: 0.6875rem;">Written - Expired</div>
+                        </div>
+                        <div style="background: var(--bg-card); padding: var(--space-4); border-radius: 6px; text-align: center;">
+                            <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px;">Avg Daily Net</div>
+                            <div id="sqlNetAvg" style="font-size: 1.5rem; font-weight: 700; font-family: var(--font-mono);">-</div>
+                            <div style="color: var(--text-muted); font-size: 0.6875rem;">7-day average</div>
+                        </div>
+                        <div style="background: var(--bg-card); padding: var(--space-4); border-radius: 6px; text-align: center;">
+                            <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px;">SQL Jobs</div>
+                            <div id="sqlJobCount" style="font-size: 1.5rem; font-weight: 700; font-family: var(--font-mono);">-</div>
+                        </div>
+                        <div style="background: var(--bg-card); padding: var(--space-4); border-radius: 6px; text-align: center;">
+                            <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px;">Total DB Size</div>
+                            <div id="sqlTotalSize" style="font-size: 1.5rem; font-weight: 700; font-family: var(--font-mono);">-</div>
+                            <div style="color: var(--text-muted); font-size: 0.6875rem;">Logical</div>
+                        </div>
                     </div>
-                    <table class="data-table" id="sqlTable">
+
+                    <!-- Job-level breakdown with expandable server details -->
+                    <table class="data-table" id="sqlJobsTable">
                         <thead>
                             <tr>
-                                <th>Database</th>
+                                <th>SQL Job</th>
                                 <th>Cluster</th>
-                                <th class="text-right">Logical Size</th>
-                                <th class="text-right">Physical (Cluster)</th>
-                                <th class="text-right">Compression</th>
-                                <th class="text-right">Daily Phys Δ</th>
-                                <th class="text-right">Weekly Phys Δ</th>
+                                <th class="text-right">Written</th>
+                                <th class="text-right">Expired</th>
+                                <th class="text-right">Net</th>
+                                <th class="text-right">Avg Net/Day</th>
+                                <th class="text-right">Expires</th>
                             </tr>
                         </thead>
-                        <tbody id="sqlTableBody">
-                            <tr><td colspan="7" class="text-center text-muted">Loading SQL data...</td></tr>
+                        <tbody id="sqlJobsTableBody">
+                            <tr><td colspan="7" class="text-center text-muted">Loading SQL storage data...</td></tr>
                         </tbody>
                     </table>
+
+                    <!-- Top Growing Databases -->
+                    <div id="sqlTopGrowersSection" style="margin-top: 16px; display: none;">
+                        <div style="font-size: 0.8125rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.03em;">
+                            Top Growing Databases
+                        </div>
+                        <table class="data-table" id="sqlTopGrowersTable">
+                            <thead>
+                                <tr>
+                                    <th>Database</th>
+                                    <th>Job</th>
+                                    <th class="text-right">Size</th>
+                                    <th class="text-right">Latest Δ</th>
+                                    <th class="text-right">Avg Δ/Day</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sqlTopGrowersBody">
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -1318,21 +1407,21 @@
                 errorBanner.classList.add('hidden');
 
                 // Fetch all data in parallel
-                const [capacityData, failuresData, alertsData, topGrowingData, consumersData, sqlStorageData, m365Summary, storageHealthData] = await Promise.all([
-                    fetch(`${API_ENDPOINT}/api/capacity`).then(r => r.ok ? r.json() : Promise.reject('Capacity API failed')),
-                    fetch(`${API_ENDPOINT}/api/failures?days=7`).then(r => r.ok ? r.json() : { failures: [] }),
-                    fetch(`${API_ENDPOINT}/api/alerts?days=1`).then(r => r.ok ? r.json() : { alerts: [] }),
-                    fetch(`${API_ENDPOINT}/api/top-growing?days=7&limit=15`).then(r => r.ok ? r.json() : { topGrowing: [] }),
-                    fetch(`${API_ENDPOINT}/api/consumers?limit=10`).then(r => r.ok ? r.json() : { topConsumers: [] }),
-                    fetch(`${API_ENDPOINT}/api/sql-storage-analysis`).then(r => r.ok ? r.json() : { top10Physical: [] }).catch(() => ({ top10Physical: [] })),
-                    fetch(`${API_ENDPOINT}/api/m365-summary`).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+                const [capacityData, failuresData, alertsData, topGrowingData, consumersData, sqlNetStorageData, m365Summary, storageHealthData] = await Promise.all([
+                    fetch(`${API_ENDPOINT}/api/dashboard/capacity`).then(r => r.ok ? r.json() : Promise.reject('Capacity API failed')),
+                    fetch(`${API_ENDPOINT}/api/dashboard/failures?days=7`).then(r => r.ok ? r.json() : { failures: [] }),
+                    fetch(`${API_ENDPOINT}/api/dashboard/alerts?days=1`).then(r => r.ok ? r.json() : { alerts: [] }),
+                    fetch(`${API_ENDPOINT}/api/dashboard/top-growing?days=7&limit=15`).then(r => r.ok ? r.json() : { topGrowing: [] }),
+                    fetch(`${API_ENDPOINT}/api/dashboard/consumers?limit=10`).then(r => r.ok ? r.json() : { topConsumers: [] }),
+                    fetch(`${API_ENDPOINT}/api/dashboard/sql-net-storage?numRuns=7`).then(r => r.ok ? r.json() : { jobs: [], summary: {} }).catch(() => ({ jobs: [], summary: {} })),
+                    fetch(`${API_ENDPOINT}/api/dashboard/m365-summary`).then(r => r.ok ? r.json() : {}).catch(() => ({})),
                     fetch(`${API_ENDPOINT}/api/dashboard/storage-health`).then(r => r.ok ? r.json() : {}).catch(() => ({}))
                 ]);
 
                 // Also fetch 1-day and 30-day growth for the combined table
                 const [growth1day, growth30day] = await Promise.all([
-                    fetch(`${API_ENDPOINT}/api/top-growing?days=1&limit=15`).then(r => r.ok ? r.json() : { topGrowing: [] }).catch(() => ({ topGrowing: [] })),
-                    fetch(`${API_ENDPOINT}/api/top-growing?days=30&limit=15`).then(r => r.ok ? r.json() : { topGrowing: [] }).catch(() => ({ topGrowing: [] }))
+                    fetch(`${API_ENDPOINT}/api/dashboard/top-growing?days=1&limit=15`).then(r => r.ok ? r.json() : { topGrowing: [] }).catch(() => ({ topGrowing: [] })),
+                    fetch(`${API_ENDPOINT}/api/dashboard/top-growing?days=30&limit=15`).then(r => r.ok ? r.json() : { topGrowing: [] }).catch(() => ({ topGrowing: [] }))
                 ]);
 
                 // Update all UI sections
@@ -1341,7 +1430,7 @@
                 updateGrowthTable(growth1day, topGrowingData, growth30day);
                 updateConsumersTable(consumersData);
                 updateFailuresSection(failuresData);
-                updateSQLSection(sqlStorageData);
+                updateSQLSection(sqlNetStorageData);
                 updateM365Section(m365Summary);
                 updateStorageHealthSection(storageHealthData);
 
@@ -1358,7 +1447,7 @@
                         alerts: alertsData,
                         growth1day, growth7day: topGrowingData, growth30day,
                         consumers: consumersData,
-                        sqlStorage: sqlStorageData,
+                        sqlNetStorage: sqlNetStorageData,
                         m365: m365Summary,
                         storageHealth: storageHealthData
                     }));
@@ -1635,7 +1724,7 @@
 
             try {
                 // Fetch job objects from API
-                const response = await fetch(`${API_ENDPOINT}/api/job-objects/${clusterName}/${jobId}?topN=10`);
+                const response = await fetch(`${API_ENDPOINT}/api/dashboard/job-objects/${clusterName}/${jobId}?topN=10`);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
                 }
@@ -1736,59 +1825,174 @@
             }).join('');
         }
 
+        // Store SQL data globally for expandable rows
+        let sqlNetStorageCache = { jobs: [] };
+
         function updateSQLSection(data) {
             const badge = document.getElementById('sqlBadge');
-            const tbody = document.getElementById('sqlTableBody');
-            const databases = data.top10Physical || [];
+            const tbody = document.getElementById('sqlJobsTableBody');
+            const jobs = data.jobs || [];
+            const summary = data.summary || {};
 
-            badge.textContent = `${databases.length} DBs`;
+            // Cache for expandable rows
+            sqlNetStorageCache = data;
 
-            if (databases.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No SQL database data available</td></tr>';
+            badge.textContent = `${jobs.length} Jobs`;
+
+            // Update summary metrics
+            const totalNetToday = summary.totalLatestNetGB || 0;
+            const avgNet = summary.totalAvgNetGB || 0;
+            const totalDbSize = summary.totalDbSizeGB || 0;
+
+            // Color code net growth
+            const netTodayClass = totalNetToday > 50 ? 'text-critical' : totalNetToday > 20 ? 'text-warning' : 'text-healthy';
+            const avgNetClass = avgNet > 50 ? 'text-critical' : avgNet > 20 ? 'text-warning' : 'text-healthy';
+
+            document.getElementById('sqlNetToday').innerHTML = `<span class="${netTodayClass}">${formatSizeGB(totalNetToday)}</span>`;
+            document.getElementById('sqlNetAvg').innerHTML = `<span class="${avgNetClass}">${formatSizeGB(avgNet)}</span>`;
+            document.getElementById('sqlJobCount').textContent = jobs.length;
+            document.getElementById('sqlTotalSize').textContent = formatSizeTB(totalDbSize / 1024);
+
+            if (jobs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No SQL storage data available</td></tr>';
                 return;
             }
 
-            // Calculate summary stats
-            const totalPhysicalTB = databases.reduce((sum, db) => sum + (db.physicalBackupTB || 0), 0);
-            const avgCompression = databases.length > 0
-                ? databases.reduce((sum, db) => sum + (db.compressionRatio || 0), 0) / databases.length
-                : 0;
+            // Build job rows with expandable server breakdown
+            tbody.innerHTML = jobs.map((job, idx) => {
+                const latest = job.latest || {};
+                const trend = job.trend || {};
 
-            // Update summary
-            document.getElementById('sqlTotalPhysical').textContent = `${totalPhysicalTB.toFixed(2)} TB`;
-            document.getElementById('sqlTotalDBs').textContent = databases.length;
-            document.getElementById('sqlAvgCompression').textContent = `${avgCompression.toFixed(1)}x`;
-
-            tbody.innerHTML = databases.map(db => {
-                const logicalGB = db.logicalGB || 0;
-                const physicalTB = db.physicalBackupTB || 0;
-                const physicalGB = physicalTB * 1024;
-                const compression = db.compressionRatio || 0;
-                const dailyDeltaTB = db.dailyPhysicalDeltaTB || 0;
-                const weeklyDeltaTB = db.weeklyPhysicalDeltaTB || 0;
-                const dailyDeltaGB = dailyDeltaTB * 1024;
-                const weeklyDeltaGB = weeklyDeltaTB * 1024;
-
-                // Color coding for physical storage impact
-                const physicalClass = physicalTB > 1 ? 'text-critical font-semibold' :
-                                     physicalTB > 0.5 ? 'text-warning font-semibold' : '';
-
-                // Color coding for growth
-                const dailyClass = dailyDeltaTB > 0 ? 'value-positive' : dailyDeltaTB < 0 ? 'text-healthy' : 'text-muted';
-                const weeklyClass = weeklyDeltaTB > 0 ? 'value-positive' : weeklyDeltaTB < 0 ? 'text-healthy' : 'text-muted';
+                // Color code net storage
+                const netClass = latest.netGB > 50 ? 'value-positive' : latest.netGB > 20 ? 'text-warning' : latest.netGB > 0 ? 'text-info' : 'text-muted';
+                const avgClass = trend.avgNetGB > 30 ? 'value-positive' : trend.avgNetGB > 10 ? 'text-warning' : 'text-muted';
 
                 return `
-                    <tr>
-                        <td style="font-weight: 500;">${db.database || 'Unknown'}</td>
-                        <td class="text-muted">${db.cluster}</td>
-                        <td class="text-right value-mono">${formatSize(logicalGB)}</td>
-                        <td class="text-right value-mono ${physicalClass}">${physicalTB >= 1 ? physicalTB.toFixed(2) + ' TB' : formatSize(physicalGB)}</td>
-                        <td class="text-right value-mono text-info">${compression.toFixed(1)}x</td>
-                        <td class="text-right value-mono ${dailyClass}">${formatGrowthTB(dailyDeltaTB)}</td>
-                        <td class="text-right value-mono ${weeklyClass}">${formatGrowthTB(weeklyDeltaTB)}</td>
+                    <tr class="expandable-row" onclick="toggleSQLJobDetails(${idx}, this)">
+                        <td>
+                            <span class="expand-icon">▶</span>
+                            <span style="font-weight: 500;">${job.jobName}</span>
+                        </td>
+                        <td class="text-muted">${job.cluster}</td>
+                        <td class="text-right value-mono">${formatSizeGB(latest.writtenGB)}</td>
+                        <td class="text-right value-mono text-healthy">${formatSizeGB(latest.expiredGB)}</td>
+                        <td class="text-right value-mono ${netClass}">${formatSizeGB(latest.netGB)}</td>
+                        <td class="text-right value-mono ${avgClass}">${formatSizeGB(trend.avgNetGB)}/day</td>
+                        <td class="text-right text-muted">${latest.expiresOn || '-'}</td>
                     </tr>
                 `;
             }).join('');
+
+            // Collect and display top growing databases across all jobs
+            const allGrowers = [];
+            for (const job of jobs) {
+                for (const db of job.topDatabases || []) {
+                    allGrowers.push({
+                        ...db,
+                        jobName: job.jobName,
+                        cluster: job.cluster
+                    });
+                }
+            }
+
+            // Sort by avg growth and show top 5
+            allGrowers.sort((a, b) => (b.avgGrowthGB || 0) - (a.avgGrowthGB || 0));
+            const topGrowers = allGrowers.slice(0, 5);
+
+            const growersSection = document.getElementById('sqlTopGrowersSection');
+            const growersBody = document.getElementById('sqlTopGrowersBody');
+
+            if (topGrowers.length > 0) {
+                growersSection.style.display = 'block';
+                growersBody.innerHTML = topGrowers.map(db => {
+                    const dailyClass = db.dailyGrowthGB > 1 ? 'value-positive' : db.dailyGrowthGB > 0 ? 'text-warning' : 'text-muted';
+                    const avgClass = db.avgGrowthGB > 1 ? 'value-positive' : db.avgGrowthGB > 0 ? 'text-warning' : 'text-muted';
+                    // Show server name next to database name if available
+                    const serverLabel = db.server ? `<span class="text-muted" style="font-weight: 400;"> (${db.server})</span>` : '';
+                    return `
+                        <tr>
+                            <td><span style="font-weight: 500;">${db.name}</span>${serverLabel}</td>
+                            <td class="text-muted">${db.jobName}</td>
+                            <td class="text-right value-mono">${formatSizeGB(db.sizeGB)}</td>
+                            <td class="text-right value-mono ${dailyClass}">${formatGrowthGB(db.dailyGrowthGB)}</td>
+                            <td class="text-right value-mono ${avgClass}">${formatGrowthGB(db.avgGrowthGB)}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                growersSection.style.display = 'none';
+            }
+        }
+
+        // Toggle SQL job details to show server breakdown
+        function toggleSQLJobDetails(jobIndex, rowElement) {
+            const detailsRowId = `sql-details-${jobIndex}`;
+            const existingDetailsRow = document.getElementById(detailsRowId);
+
+            if (existingDetailsRow) {
+                existingDetailsRow.remove();
+                rowElement.classList.remove('expanded');
+                return;
+            }
+
+            rowElement.classList.add('expanded');
+            const job = sqlNetStorageCache.jobs[jobIndex];
+            const servers = job?.serverBreakdown || [];
+
+            let detailsHTML = '<div class="details-content">';
+
+            if (servers.length === 0) {
+                detailsHTML += '<span class="text-muted">No server breakdown available</span>';
+            } else {
+                detailsHTML += `<div class="text-muted" style="margin-bottom: 8px; font-size: 0.75rem;">Server storage breakdown (latest run)</div>`;
+                detailsHTML += '<table class="nested-table"><thead><tr>';
+                detailsHTML += '<th>Server</th><th class="text-right">Read (Source)</th><th class="text-right">Physical (Stored)</th>';
+                detailsHTML += '</tr></thead><tbody>';
+
+                for (const server of servers) {
+                    const physClass = server.physicalGB > 50 ? 'text-warning font-semibold' : '';
+                    detailsHTML += `
+                        <tr>
+                            <td style="font-weight: 500;">${server.server}</td>
+                            <td class="text-right value-mono">${formatSizeGB(server.readGB)}</td>
+                            <td class="text-right value-mono ${physClass}">${formatSizeGB(server.physicalGB)}</td>
+                        </tr>
+                    `;
+                }
+
+                detailsHTML += '</tbody></table>';
+            }
+            detailsHTML += '</div>';
+
+            const detailsRow = document.createElement('tr');
+            detailsRow.id = detailsRowId;
+            detailsRow.className = 'details-row';
+            detailsRow.innerHTML = `<td colspan="7">${detailsHTML}</td>`;
+            rowElement.after(detailsRow);
+        }
+
+        // Helper: format GB with appropriate unit
+        function formatSizeGB(gb) {
+            if (gb === null || gb === undefined) return '-';
+            if (gb >= 1024) return `${(gb / 1024).toFixed(2)} TB`;
+            if (gb >= 1) return `${gb.toFixed(1)} GB`;
+            if (gb >= 0.001) return `${(gb * 1024).toFixed(0)} MB`;
+            return '-';
+        }
+
+        // Helper: format TB
+        function formatSizeTB(tb) {
+            if (tb === null || tb === undefined || tb < 0.01) return '-';
+            return `${tb.toFixed(2)} TB`;
+        }
+
+        // Helper: format growth in GB with sign
+        function formatGrowthGB(gb) {
+            if (gb === null || gb === undefined || Math.abs(gb) < 0.001) return '-';
+            const prefix = gb > 0 ? '+' : '';
+            if (Math.abs(gb) >= 1024) return `${prefix}${(gb / 1024).toFixed(2)} TB`;
+            if (Math.abs(gb) >= 1) return `${prefix}${gb.toFixed(1)} GB`;
+            return `${prefix}${(gb * 1024).toFixed(0)} MB`;
         }
 
         function formatGrowthTB(deltaTB) {
@@ -1817,7 +2021,7 @@
         async function fetchM365Breakdown() {
             const container = document.getElementById('m365BreakdownContainer');
             try {
-                const response = await fetch(`${API_ENDPOINT}/api/m365-top-users?topN=50`);
+                const response = await fetch(`${API_ENDPOINT}/api/dashboard/m365-top-users?topN=50`);
                 if (!response.ok) throw new Error('Failed to fetch M365 breakdown');
                 const data = await response.json();
 
@@ -2095,7 +2299,7 @@
                 }
                 if (data.consumers) updateConsumersTable(data.consumers);
                 if (data.failures) updateFailuresSection(data.failures);
-                if (data.sqlStorage) updateSQLSection(data.sqlStorage);
+                if (data.sqlNetStorage) updateSQLSection(data.sqlNetStorage);
                 if (data.m365) updateM365Section(data.m365);
                 if (data.storageHealth) updateStorageHealthSection(data.storageHealth);
 
@@ -2106,19 +2310,41 @@
             }
         }
 
+        // Auto-refresh configuration
+        const AUTO_REFRESH_MINUTES = 5;
+        let autoRefreshInterval = null;
+        let countdownInterval = null;
+        let nextRefreshTime = null;
+
         function scheduleAutoRefresh() {
-            const now = new Date();
-            const next2AM = new Date();
-            next2AM.setHours(2, 0, 0, 0);
-            if (now > next2AM) next2AM.setDate(next2AM.getDate() + 1);
+            // Clear any existing intervals
+            if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+            if (countdownInterval) clearInterval(countdownInterval);
 
-            const timeUntil = next2AM - now;
-            console.log(`[SCHEDULER] Next refresh at ${next2AM.toLocaleString()}`);
+            // Set next refresh time
+            nextRefreshTime = Date.now() + (AUTO_REFRESH_MINUTES * 60 * 1000);
 
-            setTimeout(() => {
+            // Update countdown every second
+            countdownInterval = setInterval(updateCountdown, 1000);
+            updateCountdown();
+
+            // Schedule the actual refresh
+            autoRefreshInterval = setInterval(() => {
                 refreshDashboard();
-                setInterval(refreshDashboard, 24 * 60 * 60 * 1000);
-            }, timeUntil);
+                nextRefreshTime = Date.now() + (AUTO_REFRESH_MINUTES * 60 * 1000);
+            }, AUTO_REFRESH_MINUTES * 60 * 1000);
+
+            console.log(`[SCHEDULER] Auto-refresh every ${AUTO_REFRESH_MINUTES} minutes`);
+        }
+
+        function updateCountdown() {
+            const countdownElem = document.getElementById('refreshCountdown');
+            if (!countdownElem || !nextRefreshTime) return;
+
+            const remaining = Math.max(0, nextRefreshTime - Date.now());
+            const minutes = Math.floor(remaining / 60000);
+            const seconds = Math.floor((remaining % 60000) / 1000);
+            countdownElem.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
         }
 
         async function askClaudeDesktop() {
