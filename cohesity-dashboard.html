@@ -224,6 +224,33 @@
             background: #2563eb;
         }
 
+        .btn-exclude, .btn-restore {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border-radius: 4px;
+            border: 1px solid var(--border-default);
+            background: var(--bg-elevated);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .btn-exclude:hover {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: var(--status-critical);
+            color: var(--status-critical);
+        }
+
+        .btn-restore:hover {
+            background: rgba(34, 197, 94, 0.15);
+            border-color: var(--status-healthy);
+            color: var(--status-healthy);
+        }
+
         /* ============================================
            HERO - STATUS INDICATOR (Tier 1)
            Premium full-width status banner
@@ -1365,6 +1392,81 @@
                     </table>
                 </div>
             </div>
+
+            <!-- Unprotected Objects -->
+            <div class="collapsible" id="unprotectedSection">
+                <div class="collapsible-header" onclick="toggleCollapsible('unprotectedSection')">
+                    <div class="collapsible-title">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                            <line x1="12" y1="8" x2="12" y2="12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                        Unprotected Objects
+                        <span class="collapsible-badge ok" id="unprotectedBadge">0</span>
+                    </div>
+                    <svg class="collapsible-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </div>
+                <div class="collapsible-content">
+                    <!-- Summary Stats -->
+                    <div class="grid-3 mb-4">
+                        <div style="background: var(--bg-card); padding: var(--space-4); border-radius: 6px; text-align: center;">
+                            <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px;">Unprotected</div>
+                            <div id="unprotectedCount" style="font-size: 1.5rem; font-weight: 700; font-family: var(--font-mono);">-</div>
+                        </div>
+                        <div style="background: var(--bg-card); padding: var(--space-4); border-radius: 6px; text-align: center;">
+                            <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px;">Excluded</div>
+                            <div id="excludedCount" style="font-size: 1.5rem; font-weight: 700; font-family: var(--font-mono); color: var(--text-secondary);">-</div>
+                        </div>
+                        <div style="background: var(--bg-card); padding: var(--space-4); border-radius: 6px; text-align: center;">
+                            <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 4px;">Total Discovered</div>
+                            <div id="totalUnprotectedCount" style="font-size: 1.5rem; font-weight: 700; font-family: var(--font-mono); color: var(--text-muted);">-</div>
+                        </div>
+                    </div>
+
+                    <!-- Unprotected Objects Table -->
+                    <div style="font-size: 0.8125rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.03em;">
+                        Needs Attention
+                    </div>
+                    <table class="data-table" id="unprotectedTable">
+                        <thead>
+                            <tr>
+                                <th>Object Name</th>
+                                <th>Type</th>
+                                <th>Cluster</th>
+                                <th class="text-center" style="width: 100px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="unprotectedTableBody">
+                            <tr><td colspan="4" class="text-center text-muted">Loading...</td></tr>
+                        </tbody>
+                    </table>
+
+                    <!-- Excluded Objects (collapsed by default) -->
+                    <details style="margin-top: 16px;">
+                        <summary style="cursor: pointer; font-size: 0.8125rem; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.03em;">
+                            Excluded Objects (<span id="exclusionsListCount">0</span>)
+                        </summary>
+                        <table class="data-table" id="exclusionsTable" style="margin-top: 8px;">
+                            <thead>
+                                <tr>
+                                    <th>Object Name</th>
+                                    <th>Type</th>
+                                    <th>Cluster</th>
+                                    <th>Excluded</th>
+                                    <th>Reason</th>
+                                    <th class="text-center" style="width: 100px;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="exclusionsTableBody">
+                                <tr><td colspan="6" class="text-center text-muted">No exclusions</td></tr>
+                            </tbody>
+                        </table>
+                    </details>
+                </div>
+            </div>
         </section>
     </div>
 
@@ -1407,7 +1509,7 @@
                 errorBanner.classList.add('hidden');
 
                 // Fetch all data in parallel
-                const [capacityData, failuresData, alertsData, topGrowingData, consumersData, sqlNetStorageData, m365Summary, storageHealthData] = await Promise.all([
+                const [capacityData, failuresData, alertsData, topGrowingData, consumersData, sqlNetStorageData, m365Summary, storageHealthData, systemAnalysisData] = await Promise.all([
                     fetch(`${API_ENDPOINT}/api/dashboard/capacity`).then(r => r.ok ? r.json() : Promise.reject('Capacity API failed')),
                     fetch(`${API_ENDPOINT}/api/dashboard/failures?days=7`).then(r => r.ok ? r.json() : { failures: [] }),
                     fetch(`${API_ENDPOINT}/api/dashboard/alerts?days=1`).then(r => r.ok ? r.json() : { alerts: [] }),
@@ -1415,7 +1517,8 @@
                     fetch(`${API_ENDPOINT}/api/dashboard/consumers?limit=10`).then(r => r.ok ? r.json() : { topConsumers: [] }),
                     fetch(`${API_ENDPOINT}/api/dashboard/sql-net-storage?numRuns=7`).then(r => r.ok ? r.json() : { jobs: [], summary: {} }).catch(() => ({ jobs: [], summary: {} })),
                     fetch(`${API_ENDPOINT}/api/dashboard/m365-summary`).then(r => r.ok ? r.json() : {}).catch(() => ({})),
-                    fetch(`${API_ENDPOINT}/api/dashboard/storage-health`).then(r => r.ok ? r.json() : {}).catch(() => ({}))
+                    fetch(`${API_ENDPOINT}/api/dashboard/storage-health`).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+                    fetch(`${API_ENDPOINT}/api/dashboard/system-analysis`).then(r => r.ok ? r.json() : { unprotectedResources: [], exclusions: [] }).catch(() => ({ unprotectedResources: [], exclusions: [] }))
                 ]);
 
                 // Also fetch 1-day and 30-day growth for the combined table
@@ -1433,6 +1536,7 @@
                 updateSQLSection(sqlNetStorageData);
                 updateM365Section(m365Summary);
                 updateStorageHealthSection(storageHealthData);
+                updateUnprotectedSection(systemAnalysisData);
 
                 // Update timestamp
                 const now = new Date();
@@ -2215,6 +2319,173 @@
                     </tr>
                 `;
             }).join('');
+        }
+
+        // ============================================
+        // UNPROTECTED OBJECTS SECTION
+        // ============================================
+
+        function updateUnprotectedSection(data) {
+            const badge = document.getElementById('unprotectedBadge');
+            const unprotectedCountEl = document.getElementById('unprotectedCount');
+            const excludedCountEl = document.getElementById('excludedCount');
+            const totalCountEl = document.getElementById('totalUnprotectedCount');
+            const exclusionsListCountEl = document.getElementById('exclusionsListCount');
+            const unprotectedTbody = document.getElementById('unprotectedTableBody');
+            const exclusionsTbody = document.getElementById('exclusionsTableBody');
+
+            const unprotected = data.unprotectedResources || [];
+            const exclusions = data.exclusions || [];
+            const excludedCount = data.excludedCount || 0;
+            const totalBeforeExclusions = data.totalUnprotectedBeforeExclusions || unprotected.length;
+
+            // Update summary stats
+            unprotectedCountEl.textContent = unprotected.length;
+            excludedCountEl.textContent = excludedCount;
+            totalCountEl.textContent = totalBeforeExclusions;
+            exclusionsListCountEl.textContent = exclusions.length;
+
+            // Update badge
+            let badgeText, badgeClass;
+            if (unprotected.length > 10) {
+                badgeText = `${unprotected.length} unprotected`;
+                badgeClass = 'critical';
+            } else if (unprotected.length > 0) {
+                badgeText = `${unprotected.length}`;
+                badgeClass = 'issues';
+            } else {
+                badgeText = 'OK';
+                badgeClass = 'ok';
+            }
+            badge.textContent = badgeText;
+            badge.className = `collapsible-badge ${badgeClass}`;
+
+            // Style the count based on severity
+            if (unprotected.length > 10) {
+                unprotectedCountEl.style.color = 'var(--status-critical)';
+            } else if (unprotected.length > 0) {
+                unprotectedCountEl.style.color = 'var(--status-warning)';
+            } else {
+                unprotectedCountEl.style.color = 'var(--status-healthy)';
+            }
+
+            // Auto-expand if issues
+            if (unprotected.length > 0) {
+                document.getElementById('unprotectedSection').classList.add('open');
+            }
+
+            // Populate unprotected table
+            if (unprotected.length === 0) {
+                unprotectedTbody.innerHTML = '<tr><td colspan="4" class="empty-state"><div class="empty-state-icon">✓</div>All discovered objects are protected</td></tr>';
+            } else {
+                unprotectedTbody.innerHTML = unprotected.map(obj => {
+                    const name = obj.name || 'Unknown';
+                    const type = (obj.type || 'Unknown').replace('k', '');
+                    const cluster = obj.cluster || '-';
+
+                    return `
+                        <tr>
+                            <td style="font-weight: 500;">${stripDomainSuffix(name)}</td>
+                            <td class="text-muted">${type}</td>
+                            <td class="text-muted">${cluster}</td>
+                            <td class="text-center">
+                                <button class="btn-exclude" onclick="excludeObject('${name.replace(/'/g, "\\'")}', '${type}', '${cluster}')" title="Exclude from future alerts">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <line x1="15" y1="9" x2="9" y2="15"/>
+                                        <line x1="9" y1="9" x2="15" y2="15"/>
+                                    </svg>
+                                    Exclude
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            // Populate exclusions table
+            if (exclusions.length === 0) {
+                exclusionsTbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No exclusions</td></tr>';
+            } else {
+                exclusionsTbody.innerHTML = exclusions.map(ex => {
+                    const name = ex.name || 'Unknown';
+                    const type = (ex.type || 'Unknown').replace('k', '');
+                    const cluster = ex.cluster || '-';
+                    const excludedAt = ex.excludedAt ? formatDateShort(ex.excludedAt) : '-';
+                    const reason = ex.reason || 'No reason provided';
+
+                    return `
+                        <tr>
+                            <td style="font-weight: 500;">${stripDomainSuffix(name)}</td>
+                            <td class="text-muted">${type}</td>
+                            <td class="text-muted">${cluster}</td>
+                            <td class="text-muted">${excludedAt}</td>
+                            <td class="text-muted" title="${reason}">${reason.length > 30 ? reason.substring(0, 30) + '...' : reason}</td>
+                            <td class="text-center">
+                                <button class="btn-restore" onclick="restoreObject('${name.replace(/'/g, "\\'")}', '${cluster}')" title="Remove from exclusion list">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="1 4 1 10 7 10"/>
+                                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                                    </svg>
+                                    Restore
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+
+        async function excludeObject(name, type, cluster) {
+            if (!confirm(`Exclude "${name}" from unprotected alerts?\n\nThis object will no longer appear in the unprotected list.`)) {
+                return;
+            }
+
+            const reason = prompt('Optional: Enter a reason for excluding this object:', 'Intentionally unprotected');
+
+            try {
+                const response = await fetch(`${API_ENDPOINT}/api/unprotected-exclusions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, type, cluster, reason: reason || 'Manually excluded via dashboard' })
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || 'Failed to exclude object');
+                }
+
+                console.log(`[EXCLUSIONS] Excluded: ${name} on ${cluster}`);
+                refreshDashboard();
+            } catch (error) {
+                console.error('[EXCLUSIONS] Error:', error);
+                alert(`Failed to exclude object: ${error.message}`);
+            }
+        }
+
+        async function restoreObject(name, cluster) {
+            if (!confirm(`Restore "${name}" to unprotected alerts?\n\nThis object will appear in the unprotected list again.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_ENDPOINT}/api/unprotected-exclusions`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, cluster })
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || 'Failed to restore object');
+                }
+
+                console.log(`[EXCLUSIONS] Restored: ${name} on ${cluster}`);
+                refreshDashboard();
+            } catch (error) {
+                console.error('[EXCLUSIONS] Error:', error);
+                alert(`Failed to restore object: ${error.message}`);
+            }
         }
 
         // Standardized date format: DD MMM YY (e.g., "25 Nov 24")
