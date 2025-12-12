@@ -1,0 +1,11 @@
+# Local backups
+_local_backup/
+
+# Audit archives
+audit/
+
+# Node modules
+node_modules/
+
+# Logs
+*.log
